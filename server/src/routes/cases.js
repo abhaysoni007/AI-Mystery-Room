@@ -281,4 +281,162 @@ casesRouter.patch('/:caseId/progress', async (req, res, next) => {
   }
 });
 
+// POST /api/v1/cases/:caseId/accusations - Server-authoritative accusation evaluation
+casesRouter.post('/:caseId/accusations', async (req, res, next) => {
+  try {
+    const { caseId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(caseId)) {
+      return sendError(res, {
+        code: 'CASE_NOT_FOUND',
+        message: 'Case dossier not found',
+        statusCode: 404,
+      });
+    }
+
+    const caseDoc = await Case.findById(caseId);
+    if (!caseDoc) {
+      return sendError(res, {
+        code: 'CASE_NOT_FOUND',
+        message: 'Case dossier not found',
+        statusCode: 404,
+      });
+    }
+
+    if (caseDoc.status === 'completed') {
+      return sendError(res, {
+        code: 'CASE_ALREADY_COMPLETED',
+        message: 'An accusation has already been finalized for this case dossier',
+        statusCode: 409,
+      });
+    }
+
+    const { suspectId, reasoning } = req.body;
+    if (!suspectId || typeof suspectId !== 'string') {
+      return sendError(res, {
+        code: 'VALIDATION_ERROR',
+        message: 'suspectId is required to submit an indictment',
+        statusCode: 400,
+      });
+    }
+
+    const matchingSuspect = caseDoc.suspects.find((s) => s.id === suspectId);
+    if (!matchingSuspect) {
+      return sendError(res, {
+        code: 'SUSPECT_NOT_FOUND',
+        message: 'Accused suspect does not exist in this case dossier',
+        statusCode: 404,
+      });
+    }
+
+    // Deterministic server-authoritative evaluation
+    const isCorrect = suspectId === caseDoc.solution.culpritId;
+    const score = isCorrect ? 100 : 0;
+    const submittedAt = new Date();
+
+    const accusation = await Accusation.create({
+      caseId,
+      userId: 'user_anonymous',
+      selectedSuspectId: suspectId,
+      reasoning: reasoning || '',
+      isCorrect,
+      score,
+      submittedAt,
+    });
+
+    // Finalize case lifecycle
+    caseDoc.status = 'completed';
+    caseDoc.completedAt = submittedAt;
+    await caseDoc.save();
+
+    // Finalize progress
+    await InvestigationProgress.updateOne(
+      { caseId, userId: 'user_anonymous' },
+      { $set: { status: 'completed', completedAt: submittedAt, lastActivityAt: submittedAt } },
+      { upsert: true }
+    );
+
+    return sendSuccess(res, {
+      data: {
+        accusation: {
+          id: accusation._id.toString(),
+          caseId,
+          selectedSuspectId: suspectId,
+          isCorrect,
+          score,
+          submittedAt,
+        },
+        resultAvailable: true,
+      },
+      message: 'Accusation submitted',
+      statusCode: 201,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/cases/:caseId/result - Authorized solution reveal
+casesRouter.get('/:caseId/result', async (req, res, next) => {
+  try {
+    const { caseId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(caseId)) {
+      return sendError(res, {
+        code: 'CASE_NOT_FOUND',
+        message: 'Case dossier not found',
+        statusCode: 404,
+      });
+    }
+
+    const caseDoc = await Case.findById(caseId);
+    if (!caseDoc) {
+      return sendError(res, {
+        code: 'CASE_NOT_FOUND',
+        message: 'Case dossier not found',
+        statusCode: 404,
+      });
+    }
+
+    // Security boundary: solution is ONLY accessible after authorized completion
+    if (caseDoc.status !== 'completed') {
+      return sendError(res, {
+        code: 'CASE_NOT_COMPLETED',
+        message: 'Case investigation must be completed before solution can be revealed',
+        statusCode: 409,
+      });
+    }
+
+    const accusation = await Accusation.findOne({ caseId }).sort({ submittedAt: -1 });
+
+    const culpritSuspect = caseDoc.suspects.find((s) => s.id === caseDoc.solution.culpritId);
+    const culpritName = caseDoc.solution.culpritName || culpritSuspect?.name || 'Culprit';
+
+    return sendSuccess(res, {
+      data: {
+        result: {
+          caseId,
+          status: 'completed',
+          selectedSuspectId: accusation?.selectedSuspectId || null,
+          reasoning: accusation?.reasoning || '',
+          isCorrect: accusation?.isCorrect ?? false,
+          score: accusation?.score ?? 0,
+          culprit: {
+            id: caseDoc.solution.culpritId,
+            name: culpritName,
+          },
+          solution: {
+            motive: caseDoc.solution.motive,
+            method: caseDoc.solution.method,
+            rationale: caseDoc.solution.rationale,
+            decisiveEvidenceIds: caseDoc.solution.decisiveEvidenceIds || [],
+            redHerrings: caseDoc.solution.redHerrings || [],
+          },
+          completedAt: caseDoc.completedAt,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default casesRouter;
