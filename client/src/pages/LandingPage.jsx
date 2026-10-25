@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { HowItWorks } from '../components/landing/HowItWorks';
 import { FeatureGrid } from '../components/landing/FeatureGrid';
 import { SampleCaseCard } from '../components/landing/SampleCaseCard';
-import { Sparkles, Compass, Search, FolderArchive, ArrowRight } from 'lucide-react';
+import { Compass, Search, FolderArchive, ArrowRight } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
 
 export function LandingPage() {
@@ -18,10 +18,6 @@ export function LandingPage() {
       <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-neoPink border-2 border-ink rounded-full text-xs font-mono font-bold shadow-hard-sm">
-              <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
-              AI-POWERED INTERACTIVE INVESTIGATION
-            </div>
 
             <h1 className="font-display font-extrabold text-5xl sm:text-6xl lg:text-7xl text-ink leading-[1.05]">
               CRACK THE CASE.<br />
