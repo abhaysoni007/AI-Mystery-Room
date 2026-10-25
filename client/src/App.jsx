@@ -13,6 +13,8 @@ import { EvidenceView } from './pages/investigation/EvidenceView';
 import { TimelineView } from './pages/investigation/TimelineView';
 import { NotesView } from './pages/investigation/NotesView';
 import { EvidenceViewerPage } from './pages/evidence/EvidenceViewerPage';
+import { AccusationPage } from './pages/AccusationPage';
+import { ResultRevealPage } from './pages/ResultRevealPage';
 
 function MainLayout() {
   return (
@@ -42,6 +44,16 @@ export default function App() {
           <Route
             path="/case/:caseId/evidence/:evidenceId"
             element={<EvidenceViewerPage />}
+          />
+
+          {/* Accusation and Post-Verdict Reveal */}
+          <Route
+            path="/case/:caseId/accuse"
+            element={<AccusationPage />}
+          />
+          <Route
+            path="/case/:caseId/result"
+            element={<ResultRevealPage />}
           />
 
           {/* Investigation Workspace Chrome */}
