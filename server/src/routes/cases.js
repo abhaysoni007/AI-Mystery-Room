@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Case } from '../models/Case.js';
 import { InvestigationProgress } from '../models/InvestigationProgress.js';
 import { Accusation } from '../models/Accusation.js';
+import { generateMysteryCase } from '../services/geminiService.js';
 import { serializePublicCase, serializePublicCaseSummary } from '../serializers/caseSerializer.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 
@@ -56,80 +57,33 @@ casesRouter.post('/', async (req, res, next) => {
     }
 
     const { scenario, category, difficulty, length } = validation.data;
-    const title = scenario.length > 40 ? scenario.slice(0, 40) + '...' : scenario;
 
-    // Seed playable mystery structure
-    const newCasePayload = {
-      title,
-      prompt: scenario,
+    // Generate complete clue-corroborated mystery using Gemini engine (with solver fallback)
+    const generatedCase = await generateMysteryCase({
+      scenario,
       category,
       difficulty,
       length,
+    });
+
+    const newCasePayload = {
+      ...generatedCase,
+      prompt: scenario,
+      ownerId: 'user_anonymous',
       status: 'active',
-      summary: scenario,
-      incident: {
-        description: scenario,
-        location: 'Crime Scene Vault',
-        timeDescription: 'Estimated between 21:00 and 22:00',
-      },
-      suspects: [
-        {
-          id: 'suspect_01',
-          name: 'Alex Morgan',
-          occupation: 'Lead Director',
-          relationship: 'Primary Keyholder',
-          summary: 'Executive director with access permissions.',
-          publicStatement: 'I was attending patrons in the lobby.',
-          alibiPublicText: 'Claims to have remained in the lobby.',
-          relatedEvidenceIds: ['evidence_log_01'],
-          relatedEventIds: ['event_01'],
-        },
-        {
-          id: 'suspect_02',
-          name: 'Julian Ross',
-          occupation: 'Specialist Contractor',
-          relationship: 'Restoration Specialist',
-          summary: 'Specialist with equipment in basement workshop.',
-          publicStatement: 'I departed the building before closure.',
-          alibiPublicText: 'Claims he caught an early express train.',
-          relatedEvidenceIds: ['evidence_log_01'],
-          relatedEventIds: ['event_01'],
-        },
-      ],
-      timeline: [
-        {
-          id: 'event_01',
-          timeDescription: '21:00',
-          description: 'Access alarm triggered in east service wing.',
-          relatedSuspectIds: ['suspect_02'],
-          relatedEvidenceIds: ['evidence_log_01'],
-          displayOrder: 1,
-        },
-      ],
-      evidence: [
-        {
-          id: 'evidence_log_01',
-          type: 'document',
-          title: 'Access Telemetry Audit',
-          description: 'Extracted keycard access logs.',
-          sourceContext: 'Security control console.',
-          content: { records: [{ timestamp: '21:28', badge: 'ID-092 (J. Ross)' }] },
-          relatedSuspectIds: ['suspect_02'],
-          relatedEventIds: ['event_01'],
-        },
-      ],
-      solution: {
-        culpritId: 'suspect_02',
-        culpritName: 'Julian Ross',
-        motive: 'Personal financial pressure.',
-        method: 'Used maintenance credentials during blackout.',
-        rationale: 'Access log conflicts with alibi.',
-        decisiveEvidenceIds: ['evidence_log_01'],
-        redHerrings: [],
-      },
     };
 
     const created = await Case.create(newCasePayload);
+
+    // Initialize progress record for active investigation
+    await InvestigationProgress.create({
+      caseId: created._id.toString(),
+      userId: 'user_anonymous',
+      openedEvidenceIds: [],
+      notes: '',
+      status: 'active',
+    });
+
     const summary = serializePublicCaseSummary(created);
 
     return sendSuccess(res, {

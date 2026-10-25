@@ -120,6 +120,18 @@ describe('Cases & Progress REST API', () => {
     expect(validRes.body.success).toBe(true);
     expect(validRes.body.data.case).toHaveProperty('id');
     expect(validRes.body.data.case.solution).toBeUndefined();
+
+    const createdId = validRes.body.data.case.id;
+    const dbCase = await Case.findById(createdId);
+    expect(dbCase).not.toBeNull();
+    expect(dbCase.suspects.length).toBeGreaterThanOrEqual(2);
+    expect(dbCase.evidence.length).toBeGreaterThanOrEqual(3);
+    expect(dbCase.timeline.length).toBeGreaterThanOrEqual(2);
+    expect(dbCase.solution.culpritId).toBeTruthy();
+
+    const dbProgress = await InvestigationProgress.findOne({ caseId: createdId });
+    expect(dbProgress).not.toBeNull();
+    expect(dbProgress.status).toBe('active');
   });
 
   it('GET /api/v1/cases/:caseId returns full public dossier without private solution', async () => {
