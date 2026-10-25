@@ -1,0 +1,18 @@
+2. Truth Engine
+
+Generate the canonical solution first, validate every clue against it, enforce suspect knowledge boundaries, and reject inconsistent cases before players see them.
+
+
+3. Interactive Digital Evidence
+
+Let players inspect fictional chats, call logs, receipts, photographs, and CCTV records to uncover contradictions themselves.
+
+
+4. Evidence-Based Verdict
+
+Players select the culprit, motive, method, and supporting clues. Score the quality of their reasoning, not merely a lucky guess.
+
+
+5. Daily Cases and Detective Progression
+
+Add shared daily challenges, personal stats, achievements, and a reason to return after completing the first case.
