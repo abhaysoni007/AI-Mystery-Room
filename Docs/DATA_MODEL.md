@@ -1,744 +1,1639 @@
 # AI Mystery Room — Database & Data Model Specification
 
-**File:** `docs/DATA_MODEL.md`  
-**Version:** 1.0.0  
-**Status:** Authoritative persistence and data-boundary specification  
-**Database:** MongoDB  
-**ODM:** Mongoose  
-**Backend:** Node.js + Express  
+
+
+**File:** `docs/DATA_MODEL.md`  
+
+**Version:** 1.1.0  
+
+**Status:** Authoritative persistence and data-boundary specification  
+
+**Database:** MongoDB  
+
+**ODM:** Mongoose  
+
+**Backend:** Node.js + Express  
+
 **Related documents:** `SPEC.md`, `API.md`, `USER_FLOWS.md`
 
+
+
 ---
+
+
 
 ## 0. Purpose and authority
 
+
+
 This document defines MongoDB collections, field types, validation rules, relationships, indexes, ownership, lifecycle, retention, and public/private data boundaries.
 
+
+
 - `SPEC.md` defines product requirements and architecture.
+
 - `API.md` defines HTTP contracts and response serialization.
+
 - `DATA_MODEL.md` defines persisted data.
+
 - `DESIGN_SPEC.md` defines visual behavior.
+
 - `USER_FLOWS.md` defines navigation and user journeys.
+
+
 
 The database is the system of record for cases, canonical solutions, evidence metadata, progress, accusations, and media references. The frontend is never authoritative for ownership, score, completion, or culprit identity.
 
+
+
 Before implementation, inspect the repository. Adapt naming and folder conventions without changing the invariants defined here. Any approved schema change must update this document, Mongoose schemas, API DTOs, and tests together.
 
+
+
 ---
+
+
 
 # 1. Data design principles
 
-1. **Canonical truth:** every playable case has one fixed culprit and solution established before play begins.
-2. **Public/private separation:** private solution fields are persisted server-side but never returned by pre-completion endpoints.
-3. **Ownership isolation:** users can access only their own cases and associated private data, unless a separate explicitly authorized sharing model is implemented.
-4. **Stable identifiers:** suspect, evidence, and timeline IDs remain stable throughout the case lifecycle.
-5. **Validated references:** every referenced suspect, event, evidence item, and media asset must exist in the relevant case.
-6. **AI output is untrusted:** validate structure, bounds, enums, references, and semantics before a case becomes playable.
-7. **No partial playable cases:** generation failures cannot expose incomplete cases as active.
-8. **Media separation:** large image/video binaries live in object storage, not MongoDB documents.
-9. **Deterministic completion:** correctness and score are calculated by server-side logic.
-10. **Explicit lifecycle:** generation, active play, completion, failure, and deletion are represented consistently.
-11. **Minimal sensitive data:** collect and retain only what the product requires.
-12. **Schema/API alignment:** persistence shapes and public API DTOs are different contracts and must not be conflated.
+
+
+1\. ****Canonical truth:**** every playable case has one fixed culprit and solution established before play begins.
+
+2\. ****Public/private separation:**** private solution fields are persisted server-side but never returned by pre-completion endpoints.
+
+3\. ****Ownership isolation:**** users can access only their own cases and associated private data, unless a separate explicitly authorized sharing model is implemented.
+
+4\. ****Stable identifiers:**** suspect, evidence, and timeline IDs remain stable throughout the case lifecycle.
+
+5\. ****Validated references:**** every referenced suspect, event, evidence item, and media asset must exist in the relevant case.
+
+6\. ****AI output is untrusted:**** validate structure, bounds, enums, references, and semantics before a case becomes playable.
+
+7\. ****No partial playable cases:**** generation failures cannot expose incomplete cases as active.
+
+8\. ****Media separation:**** large image/video binaries live in object storage, not MongoDB documents.
+
+9\. ****Deterministic completion:**** correctness and score are calculated by server-side logic.
+
+10\. ****Explicit lifecycle:**** generation, active play, completion, failure, and deletion are represented consistently.
+
+11\. ****Minimal sensitive data:**** collect and retain only what the product requires.
+
+12\. ****Schema/API alignment:**** persistence shapes and public API DTOs are different contracts and must not be conflated.
+
+
 
 ---
+
+
 
 # 2. Collection overview
 
+
+
 | Collection | Purpose | Primary owner | Sensitive/private data |
+
 |---|---|---|---|
+
 | `users` | Account identity and authentication | User | Password hash, auth metadata |
+
 | `cases` | Canonical case, suspects, timeline, evidence, solution | User | Full canonical solution and hidden clue classifications |
+
 | `investigationprogress` | Per-user progress for a case | User + case | Private notes and progress |
+
 | `accusations` | Final accusation and deterministic result | User + case | User reasoning and result |
+
 | `mediaassets` | Metadata for private generated media | Case | Storage references and access metadata |
+
 | `generationjobs` (optional) | Async generation lifecycle | User | Prompt and safe generation metadata |
+
+
 
 The initial version may embed suspects, timeline, evidence metadata, and solution inside the case document. Progress, accusations, and media metadata should be separate collections. Large media files must remain in private object storage.
 
+
+
 Do not introduce a separate collection for every embedded entity unless scale, querying, or MongoDB document size makes it necessary. If the model changes, document the migration and update APIs.
 
+
+
 ---
+
+
 
 # 3. Common conventions
 
+
+
 ## 3.1 IDs
 
+
+
 - MongoDB root document IDs: ObjectId, serialized as strings in the API.
+
 - Embedded entity IDs: stable strings generated by the backend or validated from AI output, scoped to the case.
+
 - IDs must be unique within their collection or defined scope.
+
 - Do not trust client-provided IDs as proof of ownership.
+
 - Do not use display names as identifiers.
 
+
+
 Recommended embedded prefixes:
+
 - `suspect_...`
+
 - `event_...`
+
 - `evidence_...`
+
 - `relationship_...`
+
+
 
 Prefixes are conventions, not authorization mechanisms.
 
+
+
 ## 3.2 Timestamps
+
+
 
 Use Mongoose timestamps (`createdAt`, `updatedAt`) for root documents where appropriate. Event and evidence timestamps represent fictional case time and must be stored separately from real system timestamps.
 
+
+
 - System timestamps: actual UTC time.
+
 - `occurredAt`: fictional event/evidence time.
+
 - `completedAt`: actual completion time.
+
 - `reviewedAt`: actual review time.
+
+
 
 Store actual dates as BSON Date. API serializers convert them to ISO 8601 UTC strings. If a fictional timeline includes a timezone or deliberately unknown time, represent that explicitly in the validated case schema rather than inventing an offset.
 
+
+
 ## 3.3 Validation layers
 
+
+
 Validation must occur at:
-1. HTTP request boundary.
-2. Mongoose schema boundary.
-3. AI-generated case validation before persistence.
-4. Service/business-rule boundary.
-5. Reference integrity validation.
+
+1\. HTTP request boundary.
+
+2\. Mongoose schema boundary.
+
+3\. AI-generated case validation before persistence.
+
+4\. Service/business-rule boundary.
+
+5\. Reference integrity validation.
+
+
 
 Mongoose validation alone is insufficient for semantic consistency across embedded entities.
 
+
+
 ## 3.4 Serialization
 
+
+
 Never return raw Mongoose documents directly. Use explicit serializers/DTOs for:
+
 - Public case summary.
+
 - Public suspect.
+
 - Public evidence list/detail.
+
 - User progress.
+
 - Accusation response.
+
 - Authorized result reveal.
+
+
 
 Private fields must be excluded by construction, not hidden with CSS or omitted only in one frontend component.
 
+
+
 ---
+
+
 
 # 4. `User` collection
 
+
+
 ## 4.1 Purpose
+
+
 
 Stores account identity and authentication data.
 
+
+
 ## 4.2 Schema
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `_id` | ObjectId | Yes | Generated by MongoDB |
+
 | `name` | String | Yes | Trimmed, bounded length |
+
 | `email` | String | Yes | Trimmed, normalized lowercase, unique |
+
 | `passwordHash` | String | Conditional | Required for password-based auth; never exposed |
+
 | `createdAt` | Date | Yes | System timestamp |
+
 | `updatedAt` | Date | Yes | System timestamp |
+
+
 
 Optional authentication fields may be added only if required by the chosen auth strategy. Do not store plaintext passwords or unnecessary personal information.
 
+
+
 ## 4.3 Indexes
 
+
+
 - Unique index on normalized `email`.
+
 - Use a schema-level index definition and verify it is created in the target environment.
+
+
 
 ## 4.4 Invariants
 
+
+
 - Email uniqueness must be enforced by the database, not only by a prior query.
+
 - Password hash never appears in API responses or logs.
+
 - User deletion behavior must define how owned cases and associated media are handled.
+
 - Do not store provider API keys or application secrets in user documents.
 
+
+
 ---
+
+
 
 # 5. `Case` collection
 
+
+
 ## 5.1 Purpose
+
+
 
 Stores a complete fictional investigation, including its canonical solution. The case document is the source of truth for the story and evidence.
 
+
+
 ## 5.2 Root schema
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `_id` | ObjectId | Yes | MongoDB ID |
+
 | `ownerId` | ObjectId ref `User` | Yes | Immutable owner |
+
 | `title` | String | Yes | Trimmed, bounded |
+
 | `prompt` | String | Yes | Original user scenario, bounded |
+
 | `category` | Enum | Yes | Supported category |
+
 | `difficulty` | Enum | Yes | `easy`, `medium`, `hard` |
+
 | `length` | Enum | Yes | `short`, `standard`, `extended` |
+
 | `tone` | Enum/String | No | Only supported values |
+
 | `setting` | String | No | Bounded |
+
 | `status` | Enum | Yes | Lifecycle below |
+
 | `summary` | String | Yes | Public, spoiler-safe |
+
 | `incident` | Embedded object | Yes | Public incident facts |
+
 | `suspects` | Array of embedded objects | Yes | Public fields plus any private fields clearly separated |
+
 | `timeline` | Array of embedded objects | Yes | Canonical events |
+
 | `evidence` | Array of embedded objects | Yes | Typed evidence records |
+
 | `relationships` | Array of embedded objects | No | Evidence/event relationships |
+
 | `solution` | Embedded private object | Yes before activation | Canonical answer and rationale |
+
 | `generationMetadata` | Embedded object | No | Safe provider/validation metadata |
+
 | `activatedAt` | Date | No | Set when case becomes playable |
+
 | `completedAt` | Date | No | Set after valid accusation |
+
 | `createdAt` | Date | Yes | System timestamp |
+
 | `updatedAt` | Date | Yes | System timestamp |
+
+
 
 ### Lifecycle values
 
+
+
 - `generating`: case generation in progress; not playable.
+
 - `active`: case passed required validation and is playable.
+
 - `completed`: final accusation accepted and result authorized.
+
 - `failed`: generation failed; not playable.
+
 - `deleting`: optional internal state if asynchronous deletion is implemented.
+
+
 
 A case must not become `active` until structural validation, reference validation, and required semantic checks have passed.
 
+
+
 ## 5.3 Incident subdocument
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `description` | String | Yes | Public incident summary |
+
 | `location` | String | No | Fictional location |
+
 | `occurredAt` | Date/null | No | Fictional time, not generation time |
+
 | `timeDescription` | String | No | Use if exact time is unknown or narrative-specific |
+
+
 
 Do not fabricate exact timestamps where the generated story only supplies an approximate time.
 
+
+
 ## 5.4 Suspect subdocument
+
+
 
 ### Public fields
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `id` | String | Yes | Unique within case |
+
 | `name` | String | Yes | Bounded |
+
 | `occupation` | String | No | Public profile |
+
 | `relationship` | String | Yes | Relationship to incident/victim |
+
 | `summary` | String | Yes | Spoiler-safe |
+
 | `background` | String | No | Public facts |
+
 | `publicStatement` | String | No | Public statement |
+
 | `alibiPublicText` | String | No | Claim, not necessarily truth |
+
 | `portraitAssetId` | ObjectId/string/null | No | Reference to media asset |
+
 | `relatedEvidenceIds` | String array | No | Must reference evidence in this case |
+
 | `relatedEventIds` | String array | No | Must reference timeline events in this case |
+
+
 
 ### Private fields
 
+
+
 Any private canonical information about a suspect must be placed under a clearly named private subdocument or represented in the `solution` object. Do not place private truth beside public profile fields and rely only on API discipline.
 
+
+
 Examples of private information:
+
 - Whether the suspect is the culprit.
+
 - The actual truth behind an alibi.
+
 - Secret motive details.
+
 - Hidden clue evaluation or scoring.
+
+
 
 Recommended approach: keep the canonical culprit and rationale in `solution`, and keep public suspect profiles spoiler-safe.
 
+
+
 ## 5.5 Timeline event subdocument
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `id` | String | Yes | Unique within case |
+
 | `occurredAt` | Date/null | Conditional | Fictional event timestamp |
+
 | `timeDescription` | String | No | Approximate/unknown time |
+
 | `description` | String | Yes | Public event description |
+
 | `relatedSuspectIds` | String array | No | Valid suspect references |
+
 | `relatedEvidenceIds` | String array | No | Valid evidence references |
+
 | `displayOrder` | Number | No | Stable deterministic ordering when needed |
+
+
 
 Store event time separately from evidence acquisition time. Never sort using generation time.
 
+
+
 ## 5.6 Evidence subdocument
+
+
 
 ### Shared fields
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `id` | String | Yes | Unique within case |
+
 | `type` | Enum | Yes | Supported evidence type |
+
 | `title` | String | Yes | Public title |
+
 | `description` | String | Yes | Public, spoiler-safe |
+
 | `occurredAt` | Date/null | No | Fictional event/evidence time |
+
 | `timeDescription` | String | No | Approximate/unknown time |
+
 | `sourceContext` | String | No | Fictional source context |
+
 | `displayOrder` | Number | No | Stable display ordering |
+
 | `content` | Mixed/type-specific subdocument | Yes | Validated by evidence type |
+
 | `relatedSuspectIds` | String array | No | Valid suspect references |
+
 | `relatedEventIds` | String array | No | Valid event references |
+
 | `mediaAssetId` | ObjectId/string/null | No | Stored media reference |
+
 | `integrityStatus` | Enum | No | Public-safe status only |
+
 | `createdAt` | Date | Yes | System generation/storage time |
 
+
+
 Supported evidence types should be consistent with `SPEC.md`, such as:
+
 - `chat`
+
 - `image`
+
 - `surveillance`
+
 - `document`
+
 - `forensic_report`
+
 - `witness_statement`
+
 - `email`
+
 - `call_log`
+
 - `access_log`
+
 - `map`
+
 - `audio_transcript`
+
 - `financial_record`
+
 - `other`
+
+
 
 Only implement types supported by the product contract. Unknown types must fail validation or be safely handled as an explicitly defined generic type.
 
+
+
 ### Typed content
+
+
 
 The `content` object must be validated according to `type`.
 
+
+
 Examples:
+
 - Chat: participants and ordered messages.
+
 - Image: caption, observations, optional asset reference.
+
 - Surveillance: camera identifier, location, duration, observations, optional video/still assets.
+
 - Document: sections, issuer/source, reference number.
+
 - Forensic report: report sections and findings.
+
 - Witness statement: witness identifier, statement, interview time.
+
 - Access log: structured records with timestamp, actor/credential label, and event.
+
 - Call log: structured entries with timestamp and public participants.
+
+
 
 Do not rely on a generic unvalidated object for every evidence type. Use Mongoose discriminators or a shared base schema plus type-specific validators.
 
+
+
 ### Private clue metadata
+
+
 
 Do not put hidden clue classification in the public evidence object if that object is ever serialized wholesale.
 
+
+
 Private metadata may include:
+
 - `classification`: `critical`, `supporting`, `red_herring`, `neutral`.
+
 - `isDecisive`.
+
 - Internal explanation.
+
 - Private validation notes.
+
 - Relationship weight.
+
+
 
 Recommended storage: `solution.evidenceAnalysis` keyed by evidence ID, or another private-only subdocument that the public serializers never return.
 
+
+
 ## 5.7 Relationship subdocument
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `id` | String | Yes | Unique within case |
+
 | `sourceEvidenceId` | String | Yes | Must exist |
+
 | `targetEvidenceId` | String | Yes | Must exist |
+
 | `relationshipType` | Enum | Yes | Defined set |
+
 | `publicExplanation` | String | No | Safe for pre-reveal |
+
 | `relatedSuspectIds` | String array | No | Must exist |
+
 | `relatedEventIds` | String array | No | Must exist |
+
+
 
 Relationship types may include `supports`, `contradicts`, `same_timeline`, `mentions`, or `contextual`. Do not expose hidden decisive weights or classifications.
 
+
+
 ## 5.8 Private solution subdocument
+
+
 
 The solution is required before a case can become active.
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `culpritId` | String | Yes | Must reference an existing suspect |
+
 | `motive` | String | Yes | Private until completion |
+
 | `method` | String | Yes | Private until completion |
+
 | `rationale` | String | Yes | Evidence-based explanation |
+
 | `decisiveEvidenceIds` | String array | Yes | Must reference valid evidence |
+
 | `redHerringExplanations` | Array | No | Must reference valid evidence |
+
 | `evidenceAnalysis` | Array/object | No | Private clue analysis |
+
 | `timelineExplanation` | String | No | Private reconstruction |
+
+
 
 The culprit ID and rationale must be fixed before the user starts investigating. Do not allow normal progress or assistant requests to modify them.
 
+
+
 ## 5.9 Generation metadata
 
+
+
 May contain:
+
 - Provider name.
+
 - Model identifier.
+
 - Generation duration.
+
 - Token usage if available.
+
 - Retry count.
+
 - Validation status.
+
 - Validation timestamp.
+
 - Sanitized error code.
+
+
 
 Must not contain API keys, credentials, raw stack traces, or unnecessary personal data. Store raw model prompts/responses only if there is an explicit, approved retention and access policy; by default, do not retain them wholesale.
 
+
+
 ## 5.10 Case indexes
 
+
+
 Recommended:
+
 - `{ ownerId: 1, updatedAt: -1 }`
+
 - `{ ownerId: 1, status: 1, updatedAt: -1 }`
+
 - `{ status: 1, updatedAt: 1 }` only if operational generation workers need it.
+
+
 
 Embedded suspect/evidence IDs are validated in application logic. If queries frequently target individual evidence records, consider moving evidence to a separate collection as a documented schema evolution.
 
+
+
 ---
+
+
 
 # 6. `InvestigationProgress` collection
 
+
+
 ## 6.1 Purpose
+
+
 
 Stores progress and private notes for one user and one case.
 
+
+
 ## 6.2 Schema
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `_id` | ObjectId | Yes | Root ID |
+
 | `userId` | ObjectId ref `User` | Yes | Owner |
+
 | `caseId` | ObjectId ref `Case` | Yes | Must be accessible to user |
+
 | `openedEvidenceIds` | String array | Yes | Defaults to empty; valid IDs only |
+
 | `reviewedEvidenceIds` | String array | No | Only if read tracking is implemented |
+
 | `notes` | String | No | Bounded private text |
+
 | `notesVersion` | Number | No | Optimistic concurrency if implemented |
+
 | `status` | Enum | Yes | `active`, `completed` |
+
 | `startedAt` | Date | Yes | First start time |
+
 | `lastActivityAt` | Date | Yes | Actual latest activity |
+
 | `completedAt` | Date/null | No | Set by server only |
+
 | `createdAt` | Date | Yes | Mongoose timestamp |
+
 | `updatedAt` | Date | Yes | Mongoose timestamp |
+
+
 
 ## 6.3 Indexes
 
+
+
 - Unique compound index `{ userId: 1, caseId: 1 }` for one progress record per user/case.
+
 - `{ userId: 1, lastActivityAt: -1 }` for recent activity lists.
+
+
 
 ## 6.4 Invariants
 
+
+
 - User and case ownership must be verified by the service layer.
+
 - Client cannot set `status` to completed or set `completedAt`.
+
 - Opened/reviewed evidence IDs must belong to the case.
+
 - Notes are private to the user.
+
 - Progress cannot alter the case solution or accusation.
+
 - A completed case's progress must not revert to active through a client update.
 
+
+
 ---
+
+
 
 # 7. `Accusation` collection
 
+
+
 ## 7.1 Purpose
+
+
 
 Stores the final suspect selection and deterministic result.
 
+
+
 ## 7.2 Schema
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `_id` | ObjectId | Yes | Root ID |
+
 | `userId` | ObjectId ref `User` | Yes | Owner |
+
 | `caseId` | ObjectId ref `Case` | Yes | Case |
+
 | `selectedSuspectId` | String | Yes | Must reference a case suspect |
+
 | `reasoning` | String | No | Bounded user-provided text |
+
 | `isCorrect` | Boolean | Yes | Server-calculated |
+
 | `score` | Number | Yes | Server-calculated |
+
 | `submittedAt` | Date | Yes | Server timestamp |
+
 | `createdAt` | Date | Yes | Mongoose timestamp |
+
 | `updatedAt` | Date | Yes | Mongoose timestamp |
+
+
 
 ## 7.3 Indexes and one-attempt policy
 
+
+
 If one final accusation per user/case is the approved policy:
+
 - Unique compound index `{ userId: 1, caseId: 1 }`.
+
 - Enforce the same rule in the service layer.
+
 - Treat duplicate requests as an existing-result/state-conflict case.
+
+
 
 If the product later allows multiple attempts, revise the specification and index strategy explicitly before implementation.
 
+
+
 ## 7.4 Invariants
 
+
+
 - `isCorrect` is computed by comparing `selectedSuspectId` with the canonical `solution.culpritId` on the server.
+
 - `score` is computed by server-side rules.
+
 - Client-supplied `isCorrect`, `score`, `culpritId`, or `completedAt` values are rejected or ignored.
+
 - An accusation is only accepted for an active case.
+
 - Case completion and accusation persistence must be transactionally consistent where supported. If transactions are unavailable, use a safe idempotent service strategy.
+
 - Do not ask Gemini to judge whether the accusation is correct.
 
+
+
 ---
+
+
 
 # 8. `MediaAsset` collection
 
+
+
 ## 8.1 Purpose
+
+
 
 Stores metadata and authorization references for generated media. Binary files are stored in private object storage.
 
+
+
 ## 8.2 Schema
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `_id` | ObjectId | Yes | Asset ID |
+
 | `caseId` | ObjectId ref `Case` | Yes | Owning case |
+
 | `evidenceId` | String | No | Embedded evidence ID, if applicable |
+
 | `assetType` | Enum | Yes | `image`, `video`, `audio`, `document`, `portrait`, `other` |
+
 | `storageKey` | String | Yes | Private storage key; never sent as an unrestricted public value |
+
 | `mimeType` | String | Yes | Validated allowed MIME |
+
 | `sizeBytes` | Number | Yes | Positive bounded integer |
+
 | `width` | Number | No | For images/video where available |
+
 | `height` | Number | No | For images/video where available |
+
 | `durationMs` | Number | No | For audio/video where available |
+
 | `generationProvider` | String | No | Provider identifier |
+
 | `generationModel` | String | No | Model identifier |
+
 | `generationStatus` | Enum | Yes | `pending`, `ready`, `failed` |
+
 | `createdAt` | Date | Yes | System timestamp |
+
 | `updatedAt` | Date | Yes | System timestamp |
+
+
 
 ## 8.3 Indexes
 
+
+
 - `{ caseId: 1, evidenceId: 1 }`
+
 - `{ generationStatus: 1, createdAt: 1 }` if worker operations require it.
+
+
 
 ## 8.4 Security rules
 
+
+
 - Never expose `storageKey` directly to an untrusted client.
+
 - Return a short-lived authorized URL or use a protected media endpoint.
+
 - Validate MIME type, file size, case ownership, and asset/evidence relationship.
+
 - Prevent arbitrary remote URLs from model output from being fetched without validation.
+
 - Case deletion must remove or schedule deletion of associated storage objects.
+
 - Failed generation must not leave an asset that appears ready.
 
+
+
 ---
+
+
 
 # 9. `GenerationJob` collection (optional async generation)
 
+
+
 Use only if case generation is implemented asynchronously. Do not add this collection if the service remains synchronous.
+
+
 
 ## 9.1 Schema
 
+
+
 | Field | Type | Required | Rules |
+
 |---|---|---:|---|
+
 | `_id` | ObjectId | Yes | Job ID |
+
 | `ownerId` | ObjectId ref `User` | Yes | Request owner |
+
 | `caseId` | ObjectId ref `Case`/null | No | Set after case creation |
+
 | `status` | Enum | Yes | `queued`, `running`, `succeeded`, `failed`, `cancelled` |
+
 | `stage` | String/null | No | Only real progress stage |
+
 | `inputOptions` | Embedded object | Yes | Validated prompt/options; bounded |
+
 | `attemptCount` | Number | Yes | Bounded retry count |
+
 | `errorCode` | String/null | No | Sanitized error code |
+
 | `startedAt` | Date/null | No | Actual start |
+
 | `finishedAt` | Date/null | No | Actual finish |
+
 | `createdAt` | Date | Yes | System timestamp |
+
 | `updatedAt` | Date | Yes | System timestamp |
+
+
 
 ## 9.2 Rules
 
+
+
 - Users may only inspect their own generation jobs.
+
 - Do not expose raw provider output or private solution.
+
 - Do not show fake progress percentages.
+
 - Job cancellation is only exposed if workers can actually cancel.
+
 - Failed jobs cannot produce playable partial cases.
+
 - Apply a documented retention policy to completed/failed jobs.
 
+
+
 ---
+
+
 
 # 10. Relationships and referential integrity
 
+
+
 ## 10.1 Logical relationships
 
+
+
 - `User 1 → many Case`
+
 - `User 1 → many InvestigationProgress`
+
 - `Case 1 → many InvestigationProgress`
+
 - `User 1 → many Accusation` (normally one per case)
+
 - `Case 1 → one canonical solution`
+
 - `Case 1 → many suspects` (embedded)
+
 - `Case 1 → many timeline events` (embedded)
+
 - `Case 1 → many evidence records` (embedded in initial version)
+
 - `Case 1 → many MediaAsset`
+
 - `Evidence → many suspect/event references`
+
 - `Relationship → two evidence references`
+
+
 
 ## 10.2 Referential validation
 
+
+
 Before a case becomes active:
+
 - All embedded IDs are unique.
+
 - Every related suspect ID exists.
+
 - Every related event ID exists.
+
 - Every related evidence ID exists.
+
 - The culprit ID references an existing suspect.
+
 - Decisive evidence IDs reference existing evidence.
+
 - Red-herring explanation IDs reference existing evidence.
+
 - Media references exist or are explicitly marked unavailable.
+
 - Evidence `content` matches its evidence type.
+
 - Timeline data is internally consistent enough for the case to be solvable.
+
 - Public fields do not contain direct solution spoilers.
 
+
+
 Before an API mutation:
+
 - Verify user ownership.
+
 - Verify case lifecycle.
+
 - Verify referenced IDs belong to that case.
+
 - Reject unauthorized client-controlled fields.
+
 - Use transactions or safe service-level compensation for multi-document mutations where needed.
+
+
 
 MongoDB does not automatically enforce references embedded as strings. These checks belong in validation and service logic.
 
+
+
 ---
+
+
 
 # 11. Public/private data boundary
 
+
+
 ## 11.1 Pre-completion public data
 
+
+
 Allowed:
+
 - Case title, category, difficulty, public summary, and incident facts.
+
 - Public suspect profiles and statements.
+
 - Public timeline events.
+
 - Public evidence content and metadata.
+
 - Public evidence relationships.
+
 - User's own progress and notes.
+
 - Safe generation status.
 
+
+
 Not allowed:
+
 - `solution.culpritId`
+
 - Private motive/method/rationale
+
 - Hidden clue classification
+
 - Decisive clue weights or secret scores
+
 - Private validation analysis that reveals the solution
+
 - Other users' cases, progress, notes, or accusations
+
 - Raw AI prompts/responses containing private solution data
+
 - Storage keys or secrets
+
+
 
 ## 11.2 Post-completion data
 
+
+
 After the server verifies authorized completion, the result endpoint may return:
+
 - Selected suspect and correctness.
+
 - Culprit identity.
+
 - Motive and method.
+
 - Full rationale.
+
 - Decisive evidence IDs and explanations.
+
 - Red-herring explanations.
+
 - Score and completion timestamp.
+
+
 
 ## 11.3 Enforcement strategy
 
+
+
 - Define explicit serializers/DTOs for each public API response.
+
 - Never serialize the full Mongoose case document directly.
+
 - Keep solution data in a private nested field or private subdocument.
+
 - Add automated tests for every pre-completion endpoint asserting that private fields are absent.
+
 - Do not rely on hiding fields in React.
+
 - Do not store private solution data in browser storage or URL state.
+
 - Treat AI output as untrusted until schema and semantic validation pass.
 
+
+
 ---
+
+
 
 # 12. Case generation lifecycle and transactions
 
+
+
 ## 12.1 Lifecycle
 
-1. Validate generation request.
-2. Create a generation job/case in a non-playable state if persistence is needed before generation completes.
-3. Generate canonical case plan and solution.
-4. Generate evidence content.
-5. Validate schema, IDs, references, timeline, and clue support.
-6. Generate media through a separate adapter where available.
-7. Store media privately and attach validated metadata.
-8. Revalidate the final case, including media references.
-9. Mark case `active` and set `activatedAt`.
-10. If required generation/validation fails, mark job/case failed and ensure the case is not playable.
+
+
+1\. Validate generation request.
+
+2\. Create a generation job/case in a non-playable state if persistence is needed before generation completes.
+
+3\. Generate canonical case plan and solution.
+
+4\. Generate evidence content.
+
+5\. Validate schema, IDs, references, timeline, and clue support.
+
+6\. Generate media through a separate adapter where available.
+
+7\. Store media privately and attach validated metadata.
+
+8\. Revalidate the final case, including media references.
+
+9\. Mark case `active` and set `activatedAt`.
+
+10\. If required generation/validation fails, mark job/case failed and ensure the case is not playable.
+
+
 
 Do not activate a case while required validation is incomplete.
 
+
+
 ## 12.2 Completion lifecycle
 
-1. Verify ownership and active case status.
-2. Validate selected suspect.
-3. Enforce one-attempt policy.
-4. Compare selection to canonical culprit on the server.
-5. Calculate score on the server.
-6. Persist accusation.
-7. Mark case/progress completed.
-8. Return authorized result state.
+
+
+1\. Verify ownership and active case status.
+
+2\. Validate selected suspect.
+
+3\. Enforce one-attempt policy.
+
+4\. Compare selection to canonical culprit on the server.
+
+5\. Calculate score on the server.
+
+6\. Persist accusation.
+
+7\. Mark case/progress completed.
+
+8\. Return authorized result state.
+
+
 
 Use a MongoDB transaction where supported. If transactions are unavailable, implement idempotency and a safe recovery strategy so a partial write does not create conflicting results.
 
+
+
 ---
+
+
 
 # 13. Deletion and retention
 
+
+
 Define and implement retention behavior for:
+
 - User account deletion.
+
 - Case deletion.
+
 - Associated progress.
+
 - Accusations.
+
 - Generated media.
+
 - Generation jobs and sanitized logs.
 
+
+
 Rules:
+
 - Deleting a case must make it inaccessible immediately.
+
 - Associated media must be deleted or scheduled for deletion with retryable status.
+
 - Do not leave public URLs to private media.
+
 - Avoid logging prompts, notes, credentials, or private solution text unnecessarily.
+
 - Do not retain raw AI prompts/responses indefinitely without an explicit approved policy.
+
 - Retention periods must be configurable/documented where applicable.
 
+
+
 ---
+
+
 
 # 14. Migration and schema evolution
 
+
+
 - Use explicit migration/backfill scripts for structural changes.
+
 - Do not rely on destructive schema changes during application startup.
+
 - Keep old documents readable during a planned migration window if zero-downtime deployment is required.
+
 - Add indexes intentionally and verify their impact.
+
 - Test migrations on representative fixtures.
+
 - Update `API.md`, this document, validators, serializers, and tests together.
+
 - If embedded evidence grows too large or approaches MongoDB's document size limit, migrate evidence records to a separate collection with an explicit design decision.
 
+
+
 ---
+
+
 
 # 15. Mongoose implementation expectations
 
+
+
 Suggested model modules:
+
 - `User.js`
+
 - `Case.js`
+
 - `InvestigationProgress.js`
+
 - `Accusation.js`
+
 - `MediaAsset.js`
+
 - `GenerationJob.js` only if asynchronous generation is implemented.
 
+
+
 Implementation requirements:
+
 - Enable timestamps where appropriate.
+
 - Define enums and bounded strings.
+
 - Add database indexes.
+
 - Avoid returning secrets through virtuals or serialization.
+
 - Use `select: false` for sensitive fields only as defense in depth, not as the sole security boundary.
+
 - Validate embedded IDs and references at the service layer.
+
 - Use explicit DTOs.
+
 - Keep private solution access inside server-side services.
+
 - Test index creation and duplicate behavior.
+
 - Do not add speculative fields without a documented requirement.
 
+
+
 ---
+
+
 
 # 16. Data-model acceptance checklist
 
+
+
 - [ ] All required collections and schemas are documented.
+
 - [ ] User email uniqueness is enforced by a database index.
+
 - [ ] Case owner is immutable through normal client APIs.
+
 - [ ] Case lifecycle is explicit.
+
 - [ ] A case cannot become active before validation succeeds.
+
 - [ ] Embedded suspect/event/evidence IDs are unique and references validated.
+
 - [ ] Canonical solution is private.
+
 - [ ] Public serializers omit culprit and hidden clue metadata.
+
 - [ ] Progress cannot set completion or score.
+
 - [ ] Accusation correctness and score are server-calculated.
+
 - [ ] One-attempt policy is enforced by service and database index.
+
 - [ ] Media binaries are stored outside MongoDB.
+
 - [ ] Media retrieval is authorized.
+
 - [ ] Case deletion handles related data and media.
+
 - [ ] Indexes are documented and tested.
+
 - [ ] Schema changes have migration and contract updates.
+
 - [ ] Unit/integration tests cover privacy, ownership, references, and lifecycle.
 
+
+
 ---
+
+
 
 # 17. Required Codex workflow
 
-1. Read `SPEC.md`, `API.md`, and this document before implementing models.
-2. Inspect existing Mongoose models and database conventions.
-3. Define schemas and indexes.
-4. Define validation schemas for AI-generated case data.
-5. Implement semantic/reference validation before activation.
-6. Implement public DTOs and private result serializers.
-7. Implement ownership checks in services and middleware.
-8. Implement accusation persistence and lifecycle consistency.
-9. Add tests for uniqueness, references, state transitions, and privacy.
-10. Update API examples and tests whenever the schema changes.
-11. Report changed files, indexes, migration implications, test commands/results, and known limitations.
+
+
+1\. Read `SPEC.md`, `API.md`, and this document before implementing models.
+
+2\. Inspect existing Mongoose models and database conventions.
+
+3\. Define schemas and indexes.
+
+4\. Define validation schemas for AI-generated case data.
+
+5\. Implement semantic/reference validation before activation.
+
+6\. Implement public DTOs and private result serializers.
+
+7\. Implement ownership checks in services and middleware.
+
+8\. Implement accusation persistence and lifecycle consistency.
+
+9\. Add tests for uniqueness, references, state transitions, and privacy.
+
+10\. Update API examples and tests whenever the schema changes.
+
+11\. Report changed files, indexes, migration implications, test commands/results, and known limitations.
+
+
 
 ---
 
+
+
 # 18. Final rule
+
+
 
 The database preserves the canonical truth of each mystery. Public APIs reveal only what the user is allowed to know at the current stage. Progress and accusations are server-authoritative. Media remains private. Every generated case must be validated before play.
 
-**End of `docs/DATA_MODEL.md` — Version 1.0.0**
+
+
+****End of `docs/DATA_MODEL.md` — Version 1.1.0****
+
+---
+
+# 19. Interactive Evidence Board persistence
+
+## 19.1 Ownership and storage decision
+
+The initial implementation stores each user's board state inside that user's `InvestigationProgress` document for the corresponding case. This keeps board layout and personal theories scoped to the same `(userId, caseId)` record and avoids creating a separate collection before query volume or document size justifies it.
+
+Board state is user-authored workspace data. It is not canonical case truth and must never mutate `Case.evidence`, `Case.suspects`, `Case.relationships`, or `Case.solution`.
+
+If the repository already has a dedicated board-state model, inspect it first and map these requirements to the existing model rather than introducing a duplicate source of truth. Any alternate storage decision must update `API.md`, migrations, and tests.
+
+## 19.2 `InvestigationProgress.boardState`
+
+Add the following optional embedded object to `InvestigationProgress`. Existing progress records without `boardState` must remain readable and receive a safe empty-board default at the service/DTO layer or through a migration.
+
+| Field | Type | Required | Rules |
+|---|---|---:|---|
+| `boardState.schemaVersion` | Number | Yes when board state exists | Starts at `1`; used for controlled evolution |
+| `boardState.cards` | Array of embedded objects | Yes when board state exists | User's visible board-card layout |
+| `boardState.connections` | Array of embedded objects | Yes when board state exists | User-created links only |
+| `boardState.theories` | Array of embedded objects | Yes when board state exists | User-authored hypotheses/notes |
+| `boardState.updatedAt` | Date | Yes when board state exists | Server timestamp for last accepted board mutation |
+
+### Board card
+
+| Field | Type | Required | Rules |
+|---|---|---:|---|
+| `id` | String | Yes | Stable board-item ID, unique within this board |
+| `itemType` | Enum | Yes | `evidence` or `suspect` |
+| `itemId` | String | Yes | Must reference a public evidence or suspect ID in this case |
+| `position.x` | Number | Yes | Finite and within configured board bounds |
+| `position.y` | Number | Yes | Finite and within configured board bounds |
+| `createdAt` | Date | Yes | Server timestamp |
+| `updatedAt` | Date | Yes | Server timestamp |
+
+A board card is a reference to an existing case item, not a copied canonical record. Do not persist private evidence analysis, solution fields, or arbitrary client-supplied case content inside a board card. Enforce a documented maximum card count and position bounds at the request and service layers.
+
+### User-created connection
+
+| Field | Type | Required | Rules |
+|---|---|---:|---|
+| `id` | String | Yes | Stable connection ID, unique within this board |
+| `sourceCardId` | String | Yes | Must reference a card in this board |
+| `targetCardId` | String | Yes | Must reference a different card in this board |
+| `label` | String | No | Bounded plain text; treat as untrusted user content |
+| `connectionType` | Enum | Yes | Approved UI vocabulary, e.g. `supports`, `contradicts`, `related`, `unknown` |
+| `createdAt` | Date | Yes | Server timestamp |
+| `updatedAt` | Date | Yes | Server timestamp |
+
+Connections represent the player's interpretation, not an authoritative case relationship. Never use them to calculate accusation correctness or modify canonical evidence relationships. Reject self-links, duplicate links according to the chosen uniqueness rule, invalid endpoints, unsupported types, and excessive lengths/counts.
+
+### Theory or note
+
+| Field | Type | Required | Rules |
+|---|---|---:|---|
+| `id` | String | Yes | Stable theory ID, unique within this board |
+| `text` | String | Yes | Bounded user-authored plain text |
+| `relatedCardIds` | String array | No | Every ID must reference a card in this board |
+| `status` | Enum | Yes | `open`, `supported`, `rejected` |
+| `createdAt` | Date | Yes | Server timestamp |
+| `updatedAt` | Date | Yes | Server timestamp |
+
+Theory status is the player's own assessment and must not be interpreted as verified truth. Apply length/count limits and safe text rendering. Do not render user-authored content as HTML.
+
+## 19.3 Board mutation and consistency rules
+
+- Every read or mutation must authenticate the user and verify access to the case and progress record.
+- The service must validate that each `itemId` exists in the same case and is publicly available to the current player.
+- The service must validate every connection endpoint and theory card reference against the current board state.
+- Removing a card must either remove dependent connections and theory references in the same mutation or reject the operation with a documented conflict response. The selected behavior must be consistent in `API.md`.
+- Use optimistic concurrency for board updates if the API supports concurrent tabs/devices. Reuse `notesVersion` only if its semantics are expanded and documented; otherwise add a dedicated `boardState.version` integer and require the client to send the version it edited.
+- Update `boardState.updatedAt` on the server only. Do not trust client-supplied timestamps.
+- Preserve unrelated progress fields when saving board state. A board mutation must not reset notes, evidence review state, progress status, or completion data.
+- Use bounded arrays and request payload limits to protect MongoDB document size and prevent abuse.
+- A failed save must not be reported as successful. The API should return the persisted state/version or a clear conflict/validation error so the client can preserve and retry unsaved edits.
+- Board state must be scoped by both user and case. Never allow a client to submit another user's progress ID as an authorization substitute.
+- Do not add indexes for fields embedded inside `boardState` unless a demonstrated query pattern requires them; board data is normally loaded through the unique `{ userId, caseId }` progress lookup.
+
+## 19.4 Board DTO boundary
+
+The board DTO may include board card references, positions, user-created connection labels/types, theories, and concurrency metadata. It must not include private solution data or hidden clue metadata. Populate public evidence/suspect summaries through the same public serializers used elsewhere; do not copy whole case subdocuments into the board response.
+
+Board-state validation and serialization tests must cover ownership isolation, cross-case reference rejection, invalid coordinates, duplicate IDs, self-connections, deletion cleanup, payload limits, concurrent updates, and absence of solution fields.
+
+---
+
+# 20. Case-specific visual theme persistence
+
+## 20.1 Theme selection model
+
+Add optional `themeId` to the `Case` root schema. A theme is a visual preset identifier only; it does not change the mystery, evidence, suspect truth, clue classification, difficulty, score, or solution.
+
+| Field | Type | Required | Rules |
+|---|---|---:|---|
+| `themeId` | String enum | No for legacy records; required for newly activated cases after rollout | Must be one of the approved IDs below |
+
+Approved identifiers:
+
+- `noir`
+- `archive`
+- `digital_forensics`
+- `luxury`
+- `field_investigation`
+
+The backend owns the allowlist and validates the selected ID before activation. If AI suggests a missing or unsupported value, select the documented default preset (recommended: `noir`) or use the existing product fallback. Never accept arbitrary CSS, HTML, style objects, asset URLs, or executable theme configuration from model output or client input.
+
+## 20.2 Generation and lifecycle rules
+
+- Theme selection may be proposed by the generation service, but it must be normalized against the server-side allowlist.
+- Theme choice must not be used as a signal to alter canonical culprit, motive, method, evidence, or outcome.
+- Persist the resolved `themeId` on the case so the case has a stable visual identity across sessions and devices.
+- For legacy cases without `themeId`, the serializer/client must use the agreed default without making the case unplayable.
+- A theme change, if supported at all, must be an explicit validated mutation. Do not silently change the persisted theme on every page load.
+- Keep theme tokens constrained to known frontend presets. Semantic states such as error, success, warning, disabled, focus, and contrast must remain consistent across themes.
+
+## 20.3 Theme DTO and privacy
+
+Public case summary/detail DTOs may expose `themeId` after allowlist validation. The theme field is not secret. Do not expose generation prompts, internal provider metadata, private style configuration, or solution data as part of theme serialization.
+
+Tests must verify all approved IDs, invalid-ID fallback/rejection, legacy records without a theme, persistence across reloads, and the invariant that theme selection does not change the canonical solution.
+
+---
+
+# 21. Cross-document contract alignment
+
+Before implementation, align these fields and behaviors with `SPEC.md`, `DESIGN_SPEC.md`, `USER_FLOWS.md`, and `API.md`:
+
+- `Case.themeId` and the five approved preset IDs.
+- `InvestigationProgress.boardState` and its card, connection, and theory structures.
+- Whether board updates use a dedicated optimistic-concurrency version.
+- The exact API behavior when deleting a card that has dependent connections/theory references.
+- Request limits, error codes, and DTO names.
+- Legacy-record defaults and any migration/backfill requirements.
+
+This document defines persistence requirements, not endpoint names. Do not invent routes or claim a schema is implemented until the repository has been inspected. The actual Mongoose model names and existing conventions take precedence where they can satisfy these invariants without duplicating data.
+
+## Additional acceptance checklist
+
+- [ ] Board state is stored per user and case and cannot modify canonical case truth.
+- [ ] Board cards reference existing public evidence/suspect IDs in the same case.
+- [ ] User-created connections are distinct from canonical case relationships.
+- [ ] Theories and notes are bounded, safely rendered, and private to their owner.
+- [ ] Board updates validate references, bounds, ownership, and concurrency.
+- [ ] Removing a board card handles dependent references consistently.
+- [ ] `Case.themeId` uses only the five allowlisted identifiers.
+- [ ] Theme choice is persisted and does not alter mystery truth or scoring.
+- [ ] Legacy cases without `themeId` remain readable.
+- [ ] API DTOs expose only board data and public case fields appropriate to the user's state.
+- [ ] Tests cover board persistence, ownership, invalid references, concurrency, theme validation, and solution privacy.
+

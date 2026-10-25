@@ -1,1597 +1,875 @@
 # AI Mystery Room
 ## Product Specification & Single Source of Truth (SSOT)
 
-**Document Version:** 1.0.0  
-**Project Type:** AI-powered interactive mystery investigation platform  
-**Architecture:** MERN Stack  
-**AI Provider:** Google Gemini  
-**Status:** Initial implementation specification  
-**Primary Consumer:** OpenAI Codex  
-**Specification Authority:** This document is the authoritative source for product requirements, architecture, data contracts, behavior, and acceptance criteria.
+**Document version:** 1.1.0  
+**Project type:** AI-powered interactive mystery investigation platform  
+**Stack baseline:** React, Vite, Node.js, Express, MongoDB, Mongoose  
+**AI provider:** Google Gemini, accessed only from the backend  
+**Primary implementation consumer:** Coding agents and project contributors  
+**Status:** Updated product and implementation specification  
+**Authority:** This document defines product intent and core behavior. `API.md`, `DATA_MODEL.md`, `DESIGN_SPEC.md`, `USER_FLOWS.md`, `SYSTEM_DESIGN.md`, `ACCEPTANCE_TESTS.md`, `AI_DEVELOPMENT_RULES.md`, and `FEATURE_DELIVERY_WORKFLOW.md` provide detailed supporting contracts and procedures.
+
+If this document conflicts with a supporting document, do not silently choose one. Identify the conflict, propose a minimal resolution, and update the relevant documents together before or alongside implementation.
 
 ---
 
-# 1. Product Overview
+# 1. Product overview
 
-## 1.1 Product Name
+## 1.1 Product name
 
 **AI Mystery Room**
 
-A web application that transforms user-provided scenarios, stories, or fictional premises into interactive detective investigations powered by generative AI.
+## 1.2 Product vision
 
-## 1.2 Product Vision
+AI Mystery Room is a fictional detective game in which players investigate coherent, AI-assisted cases by examining evidence, comparing statements, reconstructing timelines, building theories, identifying contradictions, and submitting an evidence-based accusation.
 
-Enable users to become detectives in unique, AI-generated mystery cases. Each case contains a fictional crime or suspicious incident, multiple suspects, interconnected clues, digital evidence, misleading leads, and a final culprit selection.
+The product must feel like a playable investigation, not a chatbot that writes a crime story. The player should actively reason about evidence rather than only read generated text.
 
-Users must investigate the evidence, form hypotheses, identify contradictions, and determine who committed the crime.
+## 1.3 Product principles
 
-The experience should feel like investigating a realistic case file rather than reading a conventional AI-generated story.
+1. **The mystery has a fixed truth.** The culprit, motive, method, and event sequence are established before the case becomes playable. Ordinary gameplay must never change the canonical solution.
+2. **Evidence drives gameplay.** Players must be able to inspect, compare, organize, connect, and reason about evidence.
+3. **Each case has its own atmosphere.** The visual presentation and evidence formats can vary with the case setting and genre while navigation and core interaction patterns remain familiar.
+4. **AI output is not trusted automatically.** Generated content must pass schema, reference, timeline, and consistency validation before it becomes playable.
+5. **The server owns authoritative state.** Ownership, case lifecycle, private solution data, scoring, and accusation correctness are enforced by the backend.
+6. **Readable code is a product requirement.** Prefer small, explicit, testable modules over unnecessary abstractions or premature infrastructure.
+7. **One feature at a time.** Every feature must pass its applicable tests and quality checks before work proceeds to the next feature.
 
-## 1.3 Core User Journey
+## 1.4 Target experience
 
-1. The user opens the website.
-2. The user enters a short scenario, story premise, or mystery idea.
-3. The user configures the difficulty and other supported options.
-4. The backend sends a structured generation request to Gemini.
-5. Gemini generates a complete fictional investigation, including a predetermined culprit, suspects, timeline, and evidence.
-6. The backend validates the generated case and saves it to MongoDB.
-7. The user enters the investigation room.
-8. The user examines evidence such as chat conversations, images, surveillance footage, witness statements, and forensic reports.
-9. The user builds a theory using the available evidence.
-10. The user selects a culprit and submits a final accusation.
-11. The system evaluates the accusation against the predetermined solution.
-12. The user receives a result, explanation, and evidence-based breakdown of the solution.
+A typical player should be able to:
+1. Start a new mystery from a prompt or choose a provided case.
+2. Enter a themed investigation workspace.
+3. Inspect a case summary, suspects, timeline, and evidence library.
+4. Open evidence artifacts such as fictional messages, receipts, witness statements, photographs, access logs, or surveillance records.
+5. Place evidence on an interactive board and connect related clues.
+6. Record theories and annotate contradictions.
+7. Review their investigation and submit a final accusation.
+8. Receive a satisfying explanation that links the canonical solution to evidence available during the case.
+9. Save and resume an active investigation or start another case.
 
-**Core principle:** The culprit and the underlying solution must be established before the user begins investigating. The system must not change the answer dynamically in response to the user's choices.
+## 1.5 Core product differentiator
 
----
+The intended experience combines:
+- A logically consistent hidden solution.
+- Interactive evidence artifacts rather than text-only clue lists.
+- A visual board where players construct and revise their own reasoning.
+- Case-specific visual atmosphere that supports the setting.
+- A clear, evidence-based final reveal.
 
-# 2. Goals and Non-Goals
-
-## 2.1 Primary Goals
-
-- Generate original, coherent mystery investigations from user prompts.
-- Provide an interactive evidence-based investigation interface.
-- Support multiple suspects and evidence types.
-- Maintain logical consistency between the crime, timeline, suspects, clues, and solution.
-- Make mysteries playable at multiple difficulty levels.
-- Evaluate the final accusation deterministically.
-- Save investigation progress and results.
-- Deliver a polished, responsive, immersive user experience.
-- Separate AI generation from deterministic game logic.
-- Ensure the application is maintainable and extensible.
-
-## 2.2 Initial Non-Goals
-
-The first version will not require:
-
-- Real-world criminal investigation capabilities.
-- Real police, criminal databases, or external surveillance integrations.
-- Actual WhatsApp account integration.
-- Real CCTV device integration.
-- Live multiplayer investigations.
-- User-generated public case marketplaces.
-- Real-world face recognition or identification.
-- Autonomous AI agents that alter the case solution while the user plays.
-- Paid subscriptions or payment processing.
-- Native Android or iOS applications.
-
-These features may be considered in later versions.
+The evidence board and case themes are core product direction, but their commercial value must be validated with player testing. Do not claim product-market fit without evidence.
 
 ---
 
-# 3. Technology Stack
+# 2. Scope and product goals
 
-## 3.1 Required Stack
+## 2.1 Version 1 goals
 
-| Layer | Technology | Responsibility |
+- Generate or load complete fictional mystery cases.
+- Maintain a canonical solution and validate case consistency.
+- Support authentication and private user-owned cases.
+- Display multiple suspects, a timeline, and multiple evidence types.
+- Implement an **Interactive Evidence Board** as the next core gameplay feature.
+- Let players place evidence cards on the board, create and remove connections, label relationships, write theories, and mark contradictions.
+- Persist board state and restore it when a player returns.
+- Use a predefined, validated theme configuration for each case.
+- Support responsive desktop, tablet, and mobile layouts.
+- Support final accusation, deterministic server-side evaluation, and authorized solution reveal.
+- Cover critical functionality with unit, integration, acceptance, and end-to-end tests.
+- Keep the architecture suitable for scaling API instances and generation workers independently when measured load requires it.
+
+## 2.2 Explicit non-goals for the initial release
+
+Unless separately approved, do not build these as part of the first Evidence Board feature:
+- Real-time multiplayer or collaborative editing.
+- Public case marketplace or user-published cases.
+- Fully explorable 3D worlds.
+- Generated video for every case.
+- Real-world police, criminal, messaging, or surveillance integrations.
+- Real-person face recognition or identification.
+- Cryptocurrency, NFTs, or blockchain mechanics.
+- Subscription billing or payment processing.
+- A general-purpose social network.
+- A complex open-world map.
+- AI agents that can alter the canonical solution during gameplay.
+
+These may be considered after the single-player investigation experience has been tested with real users.
+
+---
+
+# 3. Technology and implementation constraints
+
+## 3.1 Existing stack baseline
+
+| Layer | Baseline | Responsibility |
 |---|---|---|
-| Frontend | React.js | User interface and game experience |
-| Frontend build | Vite | Development server and production bundling |
-| Routing | React Router | Navigation and protected routes where applicable |
-| Styling | Tailwind CSS | Responsive styling and design system |
-| UI components | Reusable React components | Consistent interface |
-| State management | React Context or lightweight state library | Authentication and investigation state |
-| Backend | Node.js | Runtime |
-| API framework | Express.js | REST API and middleware |
-| Database | MongoDB | Users, cases, evidence metadata, progress, and results |
-| ODM | Mongoose | Schemas, validation, and database access |
-| AI | Google Gemini API | Structured mystery and evidence generation |
-| Authentication | JWT in secure HTTP-only cookies | Session authentication |
-| Password security | bcrypt | Password hashing if password authentication is enabled |
-| Validation | Zod or equivalent | Request and AI-output validation |
-| Testing | Vitest, Supertest, and Playwright | Unit, integration, and end-to-end testing |
-| Version control | Git and GitHub | Source control |
+| Frontend | React + Vite | User interface and investigation experience |
+| Routing | Existing router; React Router if already selected | Navigation and route protection |
+| Styling | Existing design system; Tailwind CSS if already configured | Responsive UI and shared tokens |
+| Backend | Node.js + Express | REST API and domain services |
+| Database | MongoDB + Mongoose | Users, cases, progress, board state, accusations, and metadata |
+| AI | Google Gemini through a backend adapter | Structured mystery generation and optional assistance |
+| Authentication | Secure server-validated session; HTTP-only cookies are the baseline | Authentication and authorization |
+| Validation | Existing validation library; Zod or equivalent if appropriate | Request, persisted data, and AI-output validation |
+| Testing | Existing test stack; Vitest, Supertest, and Playwright are acceptable choices | Unit, integration, and E2E tests |
+| Source control | Git and GitHub | Version control and review |
 
-Use JavaScript and JSX throughout the initial implementation unless an existing repository explicitly establishes TypeScript as its standard.
+Use JavaScript and JSX for new code unless the repository has already established TypeScript as its standard. Do not convert language, frameworks, package managers, or major dependencies as incidental cleanup.
 
-## 3.2 AI Integration
+**Repository-first rule:** inspect the actual repository, installed dependencies, scripts, conventions, and current implementation before changing files or assuming this stack is fully configured.
 
-Use the official Google Gen AI SDK for Node.js, subject to the selected Gemini model's availability and capabilities.
+## 3.2 AI integration
 
-Requirements:
+- AI-provider keys remain server-side.
+- Model names and provider settings come from validated environment configuration.
+- Request structured output where supported.
+- Validate every provider response at runtime.
+- Use bounded timeouts, output limits, retries, and cost/concurrency limits.
+- Normalize provider errors before returning them to the client.
+- Do not put provider calls directly inside Express route handlers.
+- Treat model output, user prompts, and evidence text as untrusted data.
+- Do not log complete private solutions or sensitive prompts by default.
+- Do not claim a generated image or video exists unless a real asset was created and stored. Provide honest fallbacks.
 
-- API keys must remain on the backend.
-- Model selection must be configurable through environment variables.
-- AI responses must be requested in a structured JSON format.
-- Responses must be validated before database persistence.
-- Invalid responses must be retried within bounded limits.
-- The application must handle rate limits, timeouts, malformed responses, and provider failures.
-- AI model names must not be hardcoded across multiple modules.
-- Image and video generation must use separate provider adapters if supported generation services are introduced.
+## 3.3 Architecture boundary
 
-Do not assume that the selected Gemini text model can generate images or videos. Multimodal generation capabilities depend on the specific model and available services.
+The application may remain a modular monolith with independently runnable generation workers. Do not introduce microservices, Redis, a new graph database, or a complex event system for the Evidence Board unless a measured requirement justifies it.
 
-## 3.3 Architecture Overview
+The backend is authoritative for:
+- Authentication and ownership.
+- Case lifecycle and canonical solution.
+- Public/private serialization.
+- Allowed evidence access.
+- Board-state ownership and validation.
+- Final accusation and scoring.
+- Case completion and solution reveal.
 
-```text
-React Frontend
-      |
-      | HTTPS / REST API
-      v
-Express Backend
-      |
-      +---- Authentication and Authorization
-      |
-      +---- Mystery Generation Service
-      |          |
-      |          v
-      |      Gemini API
-      |          |
-      |          v
-      |      Structured Case Validation
-      |
-      +---- Investigation Service
-      |
-      +---- Evidence Access Service
-      |
-      +---- Accusation Evaluation Service
-      |
-      +---- MongoDB / Mongoose
-      |
-      +---- Optional Media Generation Provider
-```
-
-The backend is the authority for case data, evidence access, progress, and scoring. The frontend must never determine the correct culprit independently.
+The frontend is responsible for rendering and interactive editing of the board. It must not calculate the canonical culprit or expose hidden solution fields.
 
 ---
 
-# 4. User Roles
+# 4. User roles
 
-## 4.1 Guest User
+## 4.1 Guest
 
-A guest user can:
+Guest play is optional. If supported, it requires an explicit secure session and access policy. Do not authorize access solely because a client supplies a case ID.
 
-- Open the landing page.
-- Explore a sample mystery if one is provided.
-- Enter a scenario.
-- Configure mystery generation options.
-- Start an investigation if guest play is enabled.
-- Examine permitted evidence.
-- Submit an accusation.
-- View the result for the current session.
-
-Guest persistence is optional. If guest play is implemented, it must use a secure session mechanism rather than trusting arbitrary user-supplied case identifiers.
-
-## 4.2 Registered User
+## 4.2 Registered user
 
 A registered user can:
-
 - Create an account and sign in.
-- Generate new mysteries.
-- Continue saved investigations.
-- Review completed cases.
-- Access personal investigation history.
-- Review previous accusations and results.
-- Delete their own cases and associated user data where supported.
-
-Authentication should be implemented for the initial production-ready version. Guest access may be added as a separate supported mode.
+- Create a case or start an available sample case.
+- Access their own active and completed cases.
+- Investigate suspects and evidence.
+- Create and edit their own board state, theories, and annotations.
+- Save and resume progress.
+- Submit an accusation and view the authorized result.
+- Delete their own cases where supported.
 
 ## 4.3 Administrator
 
-Administrative functionality is not required for the first release.
-
-The backend must nevertheless support operational logging, controlled configuration, and safe error reporting.
+A full administration interface is not required for the initial release. Operational logging, safe configuration, and controlled troubleshooting are still required.
 
 ---
 
-# 5. Functional Requirements
+# 5. Core functional requirements
 
-## FR-01: Landing Page
+## FR-01: Landing page
 
-The landing page must communicate the product's purpose immediately.
+The landing page must explain that the product is an interactive fictional detective game. It should provide a primary action to start an investigation, a sample-case entry where available, a concise explanation of the gameplay, case previews, and basic footer/legal information.
 
-Required elements:
+Acceptance:
+- The primary action leads to the create/select case flow.
+- Initial content is readable without waiting for AI generation.
+- The page works on supported mobile, tablet, and desktop widths.
+- It does not claim to provide real criminal investigation services.
 
-- Product logo and name.
-- Navigation bar.
-- Primary call to action: "Start an Investigation".
-- Secondary action: "Explore a Sample Case".
-- Short explanation of the investigation process.
-- Mystery case preview or sample evidence.
-- Feature highlights.
-- Footer containing basic product information and legal links.
+## FR-02: Mystery creation
 
-Acceptance criteria:
+Users can provide a fictional scenario and choose supported options.
 
-- The primary action navigates to the mystery creation flow.
-- The layout works on mobile, tablet, and desktop.
-- The page has loading-free, readable initial content.
-- The interface does not claim to provide real criminal investigation services.
+Required:
+- Scenario prompt, 20–2,000 characters after trimming.
+- Difficulty: Easy, Medium, Hard.
+- Category: fictional homicide, theft, disappearance, corporate espionage, cybercrime, blackmail, or general mystery.
+- Investigation length: Short, Standard, Extended.
 
-## FR-02: Mystery Creation
-
-The user must be able to describe the scenario from which the mystery will be generated.
-
-Required fields:
-
-**Scenario prompt**
-- Required text field.
-- Suggested minimum: 20 characters.
-- Maximum: 2,000 characters.
-- Must reject empty or whitespace-only content.
-
-**Difficulty**
-- Easy
-- Medium
-- Hard
-
-**Mystery category**
-- Murder or fictional homicide
-- Theft
-- Disappearance
-- Corporate espionage
-- Cybercrime
-- Blackmail
-- General mystery
-
-The application must treat these as fictional narrative categories and handle sensitive fictional crimes responsibly.
-
-**Investigation length**
-- Short
-- Standard
-- Extended
-
-**Optional settings**
-- Preferred setting.
-- Preferred time period.
-- Tone: suspenseful, noir, psychological, or lighthearted.
-- Preferred number of suspects, within validated limits.
+Optional settings may include:
+- Setting or location type.
+- Time period.
+- Tone, such as suspenseful, noir, psychological, or lighthearted.
+- Desired suspect count within validated limits.
+- Case theme preference: Automatic, or a theme selected from the supported catalogue.
 
 Defaults:
-
 - Difficulty: Medium.
 - Category: General mystery.
-- Investigation length: Standard.
-- Number of suspects: 4.
-
-Acceptance criteria:
-
-- Invalid input is rejected before calling Gemini.
-- The user sees the generation state after submitting a valid request.
-- Duplicate submissions do not create multiple cases accidentally.
-- The user receives an understandable error if generation fails.
-- A successful response navigates to the generated investigation.
-
-## FR-03: AI Mystery Generation
-
-The generation service must produce a complete case, not a collection of unrelated clues.
-
-Every case must include:
-
-1. A unique case ID.
-2. Case title.
-3. Scenario summary.
-4. Incident description.
-5. Incident location and time.
-6. A fixed solution.
-7. Suspect profiles.
-8. A complete event timeline.
-9. An evidence collection.
-10. Clue relationships and contradictions.
-11. Red herrings.
-12. A culprit identifier.
-13. An explanation of the culprit's motive and method.
-14. A solution rationale linking evidence to the culprit.
-15. A difficulty classification.
-16. A case completion summary.
-
-Generation requirements:
-
-- The culprit must be selected before evidence generation is finalized.
-- Suspect identifiers must remain stable throughout the case.
-- Every evidence item must refer to existing case entities.
-- Evidence timestamps must be consistent with the timeline.
-- Each case must contain enough meaningful clues to support a defensible solution.
-- Red herrings must be explainable and must not contradict essential facts without resolution.
-- The solution must not depend on facts absent from the evidence unless explicitly disclosed as a deliberate game mechanic.
-- The user-facing case description must not reveal the culprit.
-- The backend must not send the full solution to the investigation UI.
-
-The generation pipeline should use two logical stages:
-
-**Stage A: Case planning**
-
-Gemini generates the canonical solution, suspects, motives, timeline, and a clue plan.
-
-**Stage B: Evidence construction**
-
-Gemini generates evidence artifacts based on the validated case plan.
-
-The backend validates the complete case before making it playable. If validation fails, the case must be regenerated or returned as a controlled failure.
-
-For the initial version, a single structured generation request may be used during prototyping. The two-stage pipeline is the target architecture.
-
-## FR-04: Investigation Workspace
-
-The investigation workspace is the main product experience.
-
-It must contain:
-
-- Case title and case ID.
-- Incident overview.
-- Investigation progress.
-- Suspect directory.
-- Evidence library.
-- Evidence detail viewer.
-- Case timeline.
-- Notes or deduction panel.
-- Final accusation action.
-- Exit or return-to-dashboard action.
-
-The workspace must feel like a detective's case management interface.
-
-Desktop layout recommendation:
-
-- Left sidebar: suspects and evidence categories.
-- Main panel: selected evidence or investigation overview.
-- Right panel: evidence metadata, related clues, and notes.
-
-On smaller screens, use responsive navigation and full-screen evidence viewers.
-
-Acceptance criteria:
-
-- Selecting a suspect opens the suspect profile.
-- Selecting evidence opens its detail view.
-- The user can return to the evidence list without losing progress.
-- Evidence read status and investigation progress update correctly.
-- The user cannot access another user's investigation.
-- The solution is not exposed through frontend state or API responses before completion.
-
-## FR-05: Suspect Profiles
-
-Each suspect must include:
-
-- Stable suspect ID.
-- Name.
-- Age or age range where appropriate.
-- Occupation.
-- Relationship to the incident or victim.
-- Background summary.
-- Stated alibi.
-- Known motive or apparent motive.
-- Publicly available facts.
-- Evidence linking the suspect to the incident.
-- Contradictions or inconsistencies.
-- Generated portrait, if available.
-
-A suspect's profile must not expose hidden internal facts that would reveal the solution prematurely.
-
-The backend should maintain separate public and private representations of the case.
-
-## FR-06: Evidence System
-
-The application must support multiple evidence types.
-
-### A. Chat conversations
-
-Examples:
-
-- Fictional messaging app conversations.
-- Timestamped messages.
-- Message delivery indicators where relevant.
-- Conversation participants.
-- Edited or deleted messages where relevant to the plot.
-- Contradictory statements or suspicious exchanges.
-
-These should be rendered as fictional messaging interfaces. They must not be presented as genuine exports from real messaging accounts.
-
-### B. Images
-
-Examples:
-
-- Fictional crime scene photographs.
-- Objects found at a location.
-- Screenshots.
-- Photographs showing a timeline discrepancy.
-- Relevant documents or objects.
-
-Every image must have a caption, source context, and an explanation of how the evidence was obtained within the fictional investigation.
-
-### C. Surveillance footage
-
-Represent surveillance evidence through:
-
-- A fictional camera identifier.
-- Location.
-- Recording timestamp.
-- Duration.
-- Video clip or generated visual sequence when supported.
-- A text transcript or visual description.
-- Relevant observations.
-- Evidence integrity metadata.
-
-If actual video generation is unavailable, use a clearly labeled simulated recording player with a still image, timestamped observations, and an optional short sequence of generated frames.
-
-Do not display a fabricated playable video file when only a textual description exists.
-
-### D. Forensic reports
-
-Examples:
-
-- Fingerprint findings.
-- Digital forensics.
-- Access logs.
-- Document examination.
-- Time-of-death estimates in appropriate fictional cases.
-- Object or trace evidence.
-
-These should be represented as structured, fictional reports.
-
-### E. Witness statements
-
-Each statement should include:
-
-- Witness identifier.
-- Statement text.
-- Interview timestamp.
-- Relevant claims.
-- Contradictions, if any.
-
-### F. Other evidence
-
-Support extensible categories such as:
-
-- Emails.
-- Call logs.
-- Access-control records.
-- Documents.
-- Maps.
-- Audio transcripts.
-- Financial records.
-
-### Evidence metadata
-
-Every evidence item must contain:
-
-- Evidence ID.
-- Type.
-- Title.
-- Description.
-- Acquisition timestamp or fictional event timestamp.
-- Display order.
-- Public content.
-- Related suspect IDs.
-- Related timeline events.
-- Clue classification.
-- Optional media reference.
-- Read status in user progress.
-- Integrity status.
-- Optional explanation available after case completion.
-
-Evidence classifications:
-
-- Critical clue.
-- Supporting clue.
-- Red herring.
-- Neutral evidence.
-
-These classifications must not be exposed directly to the user during the investigation.
-
-Acceptance criteria:
-
-- Every evidence item belongs to exactly one case.
-- Evidence identifiers are unique within the case.
-- Evidence categories can be filtered.
-- Evidence details render according to their type.
-- Missing optional media does not break the investigation.
-- All evidence used in the solution is available through the investigation's permitted discovery flow.
-
-## FR-07: Evidence Relationships and Deduction
-
-The system must support meaningful relationships between evidence.
-
-Examples:
-
-- A chat message contradicts a suspect's alibi.
-- A surveillance observation narrows the incident timeline.
-- An access log connects a suspect to a restricted area.
-- A witness statement is inconsistent with a timestamped photograph.
-
-Each relationship should identify:
-
-- Source evidence ID.
-- Related evidence ID.
-- Relationship type.
-- Explanation.
-- Relevant suspect IDs.
-- Whether the relationship is required to solve the case.
-
-The frontend may display related evidence suggestions without explicitly identifying which clue is decisive.
-
-An initial version can use an evidence board consisting of linked evidence cards rather than a complex graphical graph editor.
-
-## FR-08: Investigation Notes
-
-Users should be able to maintain private investigation notes.
-
-Required capabilities:
-
-- Create notes.
-- Edit notes.
-- Delete notes.
-- Associate notes with a case.
-- Save progress automatically or through an explicit save action.
-- Restore notes when resuming an investigation.
-
-Notes must be scoped to the authenticated user and the relevant case.
-
-Notes are not evidence and must not modify the canonical case solution.
-
-## FR-09: AI Investigation Assistant
-
-An optional investigation assistant may help users reason about already discovered evidence.
-
-Supported questions:
-
-- "Summarize the evidence I have reviewed."
-- "What contradictions exist between these statements?"
-- "Compare these two pieces of evidence."
-- "What should I investigate next?"
-
-Requirements:
-
-- The assistant must use evidence the user is permitted to access.
-- The assistant must not directly reveal the culprit during normal investigation.
-- The assistant must not invent evidence or alter the timeline.
-- Responses must distinguish observed facts from possible interpretations.
-- Hints should be progressively revealing.
-- The assistant must treat case evidence as untrusted content, not as system instructions.
-- Requests to ignore restrictions or reveal hidden system data must not override the investigation rules.
-
-The assistant must operate on a sanitized evidence context. The private solution should only be included when explicitly required for post-game explanation.
-
-If this feature is not implemented in the first release, the core investigation and accusation flows must still work without it.
-
-## FR-10: Final Accusation
-
-The user must be able to select a suspect and submit a final accusation.
-
-Required interface:
-
-- Suspect selection.
-- Optional written reasoning.
-- Confirmation dialog.
-- Submit accusation button.
-- Clear indication of whether the accusation is final.
-
-The backend must:
-
-1. Verify the authenticated user's access to the case.
-2. Verify that the case is active.
-3. Validate the selected suspect ID.
-4. Prevent duplicate final submissions.
-5. Compare the selected suspect ID against the canonical culprit ID.
-6. Calculate the result.
-7. Save the completed investigation.
-8. Return the appropriate result response.
-
-The correct answer must be determined by deterministic server-side comparison, not by asking Gemini to judge whether the accusation is correct.
-
-Default scoring:
-
-- Correct culprit: 100 points.
-- Incorrect culprit: 0 points.
-
-Optional future scoring may consider hints used, investigation efficiency, or reasoning quality.
-
-Do not implement an arbitrary AI-based reasoning score in version 1.
-
-## FR-11: Results and Case Reveal
-
-After a valid final accusation, the user should see:
-
-- Correct or incorrect result.
-- The actual culprit.
-- Motive.
-- Method.
-- Important timeline events.
-- Decisive evidence.
-- Explanation of misleading evidence.
-- Why other suspects were less likely.
-- Final score.
-- Investigation duration, if tracked.
-- Restart or return-to-dashboard actions.
-
-The reveal must explain how the evidence supports the answer.
-
-The complete solution must only be accessible after the case has been completed or through an explicitly authorized administrative mechanism.
-
-## FR-12: Dashboard and Case History
-
-The user dashboard must display:
-
-- Welcome header.
-- Start new investigation action.
-- Active cases.
-- Completed cases.
-- Case titles and difficulty.
-- Last activity timestamp.
-- Progress indicator.
-- Final score for completed cases.
-
-Users must be able to resume an active investigation or review a completed result.
-
-Deleting a case must not leave accessible orphaned media or progress records.
-
----
-
-# 6. Mystery Generation Contract
-
-## 6.1 Structured AI Output
-
-Gemini must produce data conforming to a defined schema. Natural-language-only responses are insufficient for production persistence.
-
-Conceptual structure:
-
-```json
-{
-  "title": "The Last Train",
-  "category": "disappearance",
-  "difficulty": "medium",
-  "summary": "A passenger disappears during a late-night journey.",
-  "incident": {
-    "description": "A fictional incident description.",
-    "location": "Central Station",
-    "occurredAt": "2030-11-12T22:30:00Z"
-  },
-  "suspects": [
-    {
-      "id": "suspect_01",
-      "name": "Alex Morgan",
-      "occupation": "Station Manager",
-      "relationship": "Worked with the missing passenger",
-      "alibi": "Claims to have been in the control room"
-    }
-  ],
-  "timeline": [
-    {
-      "id": "event_01",
-      "occurredAt": "2030-11-12T22:00:00Z",
-      "description": "The passenger enters the station"
-    }
-  ],
-  "evidence": [
-    {
-      "id": "evidence_01",
-      "type": "chat",
-      "title": "Recovered Messages",
-      "description": "A conversation recovered during the fictional investigation.",
-      "content": {
-        "messages": []
-      },
-      "relatedSuspectIds": ["suspect_01"],
-      "relatedEventIds": ["event_01"]
-    }
-  ],
-  "solution": {
-    "culpritId": "suspect_01",
-    "motive": "Private motive explanation",
-    "method": "Private explanation of the incident",
-    "rationale": "Private evidence-based explanation",
-    "decisiveEvidenceIds": ["evidence_01"]
-  }
-}
-```
-
-This is an illustrative contract, not a complete production schema. The implementation must define and validate the complete schema before building dependent services.
-
-Rules:
-
-- Dates must be valid ISO 8601 timestamps.
-- Every referenced suspect and event must exist.
-- IDs must be unique.
-- The culprit must reference an existing suspect.
-- Evidence content must match its evidence type.
-- Required evidence references must resolve.
-- The final case must contain sufficient clues to support the solution.
-- Public and private data must be separated before API serialization.
-
-## 6.2 Difficulty Profiles
-
-**Easy**
-
-- 3 suspects by default.
-- 5–7 evidence items.
-- One primary explanation supported by several clear clues.
-- Limited red herrings.
-- Short timeline.
-
-**Medium**
-
-- 4 suspects by default.
-- 8–12 evidence items.
-- Multiple evidence types.
-- At least two meaningful contradictions.
-- Moderate use of red herrings.
-- Several related timeline events.
-
-**Hard**
-
-- 5–6 suspects by default.
-- 12–18 evidence items.
-- Interconnected clues across multiple evidence types.
-- Multiple plausible initial hypotheses.
-- More subtle contradictions.
-- A solution requiring cross-referencing evidence.
-
-These quantities are initial product defaults. They must be configurable and validated against generation quality and latency.
-
-## 6.3 Generation Validation
-
-The backend must validate:
-
-- Schema completeness.
-- Suspect count.
-- Evidence count.
-- Valid identifiers.
-- Valid references.
-- Timeline consistency.
-- Presence of a culprit.
-- Existence of decisive clues.
-- No solution leakage in public fields.
-- No duplicate evidence IDs.
-- No empty required content.
-
-A structurally valid JSON object does not automatically mean the mystery is logically sound. Include semantic checks and, where useful, a separate consistency-review generation step.
-
-Do not rely on a second AI response as the sole authority for correctness. Deterministic structural and reference validation remains mandatory.
-
----
-
-# 7. Frontend Specification
-
-## 7.1 Required Routes
-
-| Route | Purpose | Access |
+- Length: Standard.
+- Suspects: 4.
+- Theme: Automatic, chosen from case metadata and mapped to an approved theme preset.
+
+Acceptance:
+- Invalid prompts are rejected before provider calls.
+- The user sees a real generation state.
+- Duplicate submissions are prevented through UI safeguards and server-side idempotency where applicable.
+- Failures are communicated clearly without losing the user's prompt.
+- A successful generation navigates to the playable case only after validation and persistence succeed.
+
+## FR-03: Case generation and the Truth Engine
+
+A playable case must include:
+- Stable case ID, title, category, difficulty, summary, and incident details.
+- A canonical solution with culprit, motive, method, rationale, and event sequence.
+- Stable suspect IDs and public suspect profiles.
+- A coherent timeline.
+- Evidence artifacts with stable IDs and type-specific content.
+- Evidence-to-suspect and evidence-to-event references.
+- Clue relationships, contradictions, and red herrings.
+- Decisive evidence IDs and post-game explanations.
+- A validated theme ID and theme configuration reference.
+- Generation metadata that does not leak private solution data to the client.
+
+### Generation principles
+
+1. Establish the canonical truth before finalizing clues.
+2. Build suspect knowledge, alibis, timeline events, and evidence from that truth.
+3. Validate all identifiers and cross-references.
+4. Validate chronology and domain-specific constraints.
+5. Ensure the solution is supported by discoverable evidence.
+6. Ensure red herrings have coherent explanations.
+7. Keep public and private fields separate before serialization.
+8. Reject, repair, or regenerate inconsistent output under bounded rules.
+9. Do not make the player rely on an undisclosed fact for the intended solution.
+10. Do not allow dialogue, hints, or themes to change the canonical solution.
+
+A two-stage generation process—case planning followed by evidence construction—is the target design. A smaller prototype may use one structured generation call, but it must still perform the same validations before the case becomes playable.
+
+### Initial difficulty guidelines
+
+| Difficulty | Suggested size | Expected reasoning |
 |---|---|---|
-| `/` | Landing page | Public |
-| `/create` | Create a mystery | Public or authenticated, depending on configuration |
-| `/login` | Sign in | Public |
-| `/register` | Create account | Public |
-| `/dashboard` | Personal case dashboard | Authenticated |
-| `/case/:caseId` | Investigation overview | Authorized case owner |
-| `/case/:caseId/evidence/:evidenceId` | Evidence detail | Authorized case owner |
-| `/case/:caseId/accuse` | Submit final accusation | Authorized case owner |
-| `/case/:caseId/result` | Reveal completed case | Authorized completed case |
-| `/profile` | Account settings | Authenticated |
+| Easy | 3 suspects, 5–7 evidence items | Clear clues and a short timeline |
+| Medium | 4 suspects, 8–12 evidence items | Multiple evidence types and meaningful contradictions |
+| Hard | 5–6 suspects, 12–18 evidence items | Cross-referencing and multiple plausible initial hypotheses |
 
-If guest investigations are supported, they require a separately designed access policy. Do not make case access public merely to simplify routing.
+These are configurable starting points, not fixed guarantees. Validate case quality and latency before increasing complexity.
 
-## 7.2 Core Components
+## FR-04: Investigation workspace
 
-Build reusable components rather than duplicating page-specific implementations.
+The workspace is the central case experience. It must provide:
+- Case title, summary, status, and progress.
+- Suspect directory and suspect details.
+- Evidence library with category filters.
+- Evidence detail viewer appropriate to each evidence type.
+- Timeline.
+- Interactive Evidence Board.
+- Investigation notes and theories.
+- Final accusation action.
+- Exit/dashboard navigation.
 
-Suggested components:
+Desktop may use a multi-panel layout. Smaller screens should use responsive panels, tabs, drawers, or full-screen detail views. The user must not lose saved state when moving between views.
 
-- `Navbar`
-- `Footer`
-- `PrimaryButton`
-- `SecondaryButton`
-- `TextAreaField`
-- `SelectField`
-- `LoadingState`
-- `ErrorState`
-- `EmptyState`
-- `CaseCard`
-- `CaseHeader`
-- `SuspectCard`
-- `SuspectProfile`
-- `EvidenceCard`
-- `EvidenceFilter`
-- `EvidenceViewer`
-- `ChatEvidenceViewer`
-- `ImageEvidenceViewer`
-- `VideoEvidenceViewer`
-- `DocumentEvidenceViewer`
-- `Timeline`
-- `InvestigationNotes`
-- `AccusationDialog`
-- `ResultSummary`
-- `ProgressIndicator`
-- `ToastNotification`
+## FR-05: Suspect profiles
 
-Each component should have a single clear responsibility.
+Each public suspect profile may include:
+- Stable suspect ID, name, occupation, and appropriate background.
+- Relationship to the incident.
+- Stated alibi and public claims.
+- Publicly known motive or apparent motive.
+- Evidence references that the user is permitted to inspect.
+- Portrait or other media when available.
 
-## 7.3 Visual Design Direction
+Private knowledge, hidden motives, internal clue classifications, and solution details must not be included in ordinary suspect responses before the authorized reveal.
 
-The product should feel like a modern investigative command center.
+## FR-06: Evidence system
 
-Visual references in words:
+Support structured fictional evidence such as:
+- Chat conversations and messages.
+- Emails and documents.
+- Images and photographs.
+- Surveillance observations, simulated clips, or actual generated media when available.
+- Forensic reports.
+- Witness statements.
+- Call logs, access-control logs, receipts, maps, audio transcripts, and financial records.
 
-- Dark charcoal or near-black backgrounds.
-- Muted slate panels.
-- Off-white primary text.
-- Restrained amber or red accents.
-- Monospaced typography for timestamps and evidence identifiers.
-- Clear information hierarchy.
-- Subtle borders and depth.
-- High-quality typography.
-- Responsive panels and structured layouts.
-- Purposeful transitions rather than excessive animation.
+Each evidence item must have a stable ID, type, title, description, public content, timestamp/context, display order, related suspect IDs, related timeline event IDs, optional media reference, and integrity/context metadata. Read status belongs to user progress rather than being treated as globally shared case truth.
 
-Avoid making the UI look like a generic SaaS dashboard or a neon-heavy gaming template.
+Internal clue classification may include decisive clue, supporting clue, red herring, or neutral evidence. These labels must not be disclosed during ordinary investigation.
 
-Use color to distinguish interface states, not to disclose evidence classifications.
+Acceptance:
+- Every evidence item belongs to one case.
+- IDs and references are valid and unique in their intended scope.
+- Evidence renders through a type-appropriate viewer.
+- Missing optional media has an honest fallback.
+- Evidence required to solve the case is discoverable through the intended gameplay flow.
+- Evidence text is rendered safely as untrusted content.
 
-## 7.4 Accessibility
+## FR-07: Interactive Evidence Board — next core feature
 
-- Use semantic HTML.
-- Ensure keyboard navigation.
-- Provide visible focus states.
-- Provide accessible form labels.
-- Maintain adequate contrast.
-- Do not use color as the only indicator of status.
-- Respect reduced-motion preferences.
-- Ensure media controls have accessible names.
-- Provide text alternatives for generated visual evidence.
+### Purpose
 
----
+Give players a visual workspace where they can construct and revise their own explanation by connecting suspects, evidence, timeline events, and theories. The board must support actual deduction, not merely decorative strings between cards.
 
-# 8. Backend API Specification
+### Initial scope
 
-Base path: `/api/v1`
+The first implementation must support:
+1. Open a board associated with an authorized case.
+2. Add an evidence item or suspect to the board from the existing case library.
+3. Display cards with a clear type, title, and concise summary.
+4. Move cards within the board and preserve their positions.
+5. Create a connection between two placed items.
+6. Choose a supported relationship label, such as supports, contradicts, places-at-time, links-to, or custom theory connection.
+7. Add, edit, and delete a theory or annotation.
+8. Mark a contradiction between two claims/evidence items and explain the reason in the player's own words.
+9. Remove a connection or a card from the board without deleting the underlying case evidence.
+10. Save changes and restore the same board state after navigation or refresh.
+11. Reset or clear the board only after an explicit confirmation.
+12. Navigate to the referenced evidence or suspect detail.
+13. Work with keyboard-accessible controls as well as pointer interactions.
+14. Reflow to a usable mobile layout, even if mobile uses a list/connection editor rather than freeform dragging.
 
-All responses must follow a consistent JSON structure.
+### Data and behavior rules
 
-Success response:
+- A board belongs to one user and one case.
+- The initial policy is one persistent board per user per case.
+- The board stores references to existing case evidence and suspects; it does not duplicate canonical evidence content.
+- Board cards may store user-controlled position, display state, and optional user annotations.
+- Connections must reference valid board item IDs.
+- Theory and contradiction text is user-authored content and must be length-limited and safely rendered.
+- Deleting a board card removes its board connections or handles them through a documented cleanup rule. It must not delete case evidence.
+- Board state must never contain the canonical solution or hidden clue classifications.
+- The server must validate ownership and referenced item IDs on every save.
+- Client coordinates must be normalized or bounded so a malformed payload cannot create pathological documents.
+- Saves must avoid silently overwriting newer changes. Use a version field or another explicit concurrency policy if concurrent editing is supported.
+- A connection label describes the player's interpretation; it is not proof that the interpretation is correct.
+- The UI must not color a player-created link as objectively correct/incorrect before the authorized reveal unless a clearly defined game mechanic explicitly provides that feedback.
+- The board must remain usable when empty, when no evidence has been placed, and when the case contains long titles or many evidence items.
 
-```json
-{
-  "success": true,
-  "data": {},
-  "message": "Request completed successfully"
-}
-```
+### Not included in the first board release
 
-Error response:
+- Multiplayer live collaboration.
+- AI-generated automatic deductions that modify the player's board without permission.
+- Automatic revelation of decisive clues.
+- Complex physics-based layouts.
+- Infinite canvas or graph-scale optimization before actual use requires it.
+- A separate database or graph database solely for board connections.
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "The supplied input is invalid"
-  }
-}
-```
+### Board acceptance summary
 
-Do not expose stack traces, secret configuration, raw provider errors, or the canonical solution in generic error responses.
+The user can add evidence, position it, connect it with a relationship label, record a theory, mark a contradiction, save, refresh, and recover the same board state. Unauthorized users cannot access or modify another user's board. The board does not leak hidden solution data. Core interactions work with keyboard and at mobile widths.
 
-## 8.1 Authentication
+## FR-08: Case-specific visual themes
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/logout`
-- `GET /auth/me`
+### Purpose
 
-Use secure HTTP-only cookies for session tokens where appropriate. Apply CSRF protection when required by the chosen cookie and deployment configuration.
+Each case should feel like entering a different investigative world. Theme variation must be driven by case metadata and approved design presets—not arbitrary AI-generated CSS or a separate hardcoded UI for each case.
 
-## 8.2 Case Generation
+### Shared product identity
 
-- `POST /cases/generate` — validate input and initiate generation.
-- `GET /cases/:caseId` — retrieve the user's permitted public case data.
-- `GET /cases` — list the user's cases.
-- `DELETE /cases/:caseId` — delete an owned case.
+Keep consistent across all cases:
+- Product navigation and account controls.
+- Core route behavior and interaction patterns.
+- Board editing semantics.
+- Accessibility expectations.
+- Error, loading, save, and confirmation patterns.
+- Core typography hierarchy and spacing rules where appropriate.
 
-Generation may initially be synchronous. If generation time becomes significant, introduce a job-based workflow with status polling.
+Allow the following to vary by case theme:
+- Color tokens and accent colors.
+- Background texture or ambient imagery.
+- Evidence-card appearance and decorative framing.
+- Approved typography preset.
+- Iconography and small visual motifs.
+- Optional, restrained atmospheric transitions or sounds if user-controlled and accessible.
+- Evidence artifact presentation, such as archival documents, digital logs, railway tickets, or laboratory reports.
 
-Potential future endpoints:
+### Initial theme presets
 
-- `GET /generation-jobs/:jobId`
-- `POST /cases/:caseId/retry-generation`
+The initial set should be small and extensible. Suggested presets:
+- `noir`: restrained dark surfaces, muted cinematic accents, case-file styling.
+- `archive`: paper, ink, and archival-document styling for historical cases.
+- `digital_forensics`: structured logs, data panels, and cool technical accents.
+- `luxury`: refined editorial presentation for hotels, estates, or high-society mysteries.
+- `field_investigation`: practical evidence labels, maps, and field notes.
 
-Do not expose private solution data in ordinary case retrieval responses.
+These names are examples. Inspect the existing design system and implement only presets that fit the repository and design direction.
 
-## 8.3 Suspects and Evidence
+### Theme configuration rules
 
-- `GET /cases/:caseId/suspects`
-- `GET /cases/:caseId/suspects/:suspectId`
-- `GET /cases/:caseId/evidence`
-- `GET /cases/:caseId/evidence/:evidenceId`
-- `POST /cases/:caseId/evidence/:evidenceId/read`
+- AI may suggest a theme ID and semantic tags, but the server validates the theme ID against an allowlist.
+- Theme tokens are defined by the application, not generated as arbitrary CSS by the model.
+- Unsupported or invalid theme IDs fall back to a safe default.
+- Theme changes must not alter evidence facts, clue availability, case scoring, or the canonical solution.
+- Theme styling must not reveal whether a clue is decisive or misleading.
+- Every preset must meet contrast, keyboard focus, reduced-motion, and responsive requirements.
+- Theme configuration is metadata on the case; it is not a separate codebase or separate page implementation.
+- Keep the number of initial presets small. Add themes based on tested cases and clear visual needs, not simply to increase a feature count.
 
-All endpoints must verify ownership or the relevant authorized session.
+## FR-09: Investigation notes, theories, and contradiction annotations
 
-The API must return only public evidence fields. Internal clue labels and private solution details must be excluded.
-
-## 8.4 Investigation Progress
-
-- `GET /cases/:caseId/progress`
-- `PATCH /cases/:caseId/progress`
-- `GET /cases/:caseId/notes`
-- `PUT /cases/:caseId/notes`
-- `DELETE /cases/:caseId/notes/:noteId`
-
-Progress updates must be validated and idempotent where appropriate.
-
-## 8.5 Accusation and Results
-
-- `POST /cases/:caseId/accusations`
-- `GET /cases/:caseId/result`
-
-The accusation request should accept a suspect ID and optional reasoning.
-
-Example request:
-
-```json
-{
-  "suspectId": "suspect_01",
-  "reasoning": "The access log conflicts with the suspect's stated alibi."
-}
-```
-
-The response must expose the correctness result and appropriate reveal data only after the submission has been authorized and processed.
-
-The canonical culprit ID must not be returned before completion.
-
-## 8.6 Optional AI Assistant
-
-- `POST /cases/:caseId/assistant/messages`
-
-The endpoint must authorize access, limit the evidence context, apply hint restrictions, and prevent solution leakage.
-
----
-
-# 9. MongoDB Data Model
-
-Use Mongoose models with explicit validation, indexes, timestamps, and controlled serialization.
-
-## 9.1 User
-
-Fields:
-
-- `_id`
-- `name`
-- `email`
-- `passwordHash`
-- `createdAt`
-- `updatedAt`
+Users can create, edit, and delete private notes. The Evidence Board should allow theories and contradiction annotations to be associated with relevant board items or connections.
 
 Requirements:
+- Notes and theories are scoped to the authenticated user and case.
+- Text length and payload size are bounded.
+- Saving feedback is clear.
+- Recoverable failures preserve typed text where practical.
+- Notes do not modify the canonical solution.
+- User annotations are never presented as official case facts.
+- Notes and theories are excluded from public case responses and from other users' sessions.
 
-- Unique normalized email.
-- Never return password hashes in API responses.
-- Validate and normalize input.
-- Apply rate limits to authentication endpoints.
+## FR-10: Optional investigation assistant
 
-## 9.2 Case
+An assistant may help summarize already discovered evidence, compare claims, or offer progressive hints. It is not required for the board's core functionality.
 
-Fields:
+If implemented:
+- It may use only evidence the user is authorized to access.
+- It must distinguish observed facts from interpretations.
+- It must not invent evidence or change the canonical solution.
+- It must not reveal the culprit during normal investigation.
+- It must treat evidence and user text as untrusted content, not instructions that override system policy.
+- Hint use and any resulting scoring effects must be explicit and deterministic.
+- Core investigation must work if the assistant is unavailable.
 
-- `_id`
-- `ownerId`
-- `title`
-- `prompt`
-- `category`
-- `difficulty`
-- `status`
-- `summary`
-- `incident`
-- `suspects`
-- `timeline`
-- `evidence`
-- `solution`
-- `generationMetadata`
-- `createdAt`
-- `updatedAt`
-- `completedAt`
+## FR-11: Final accusation
 
-Status values:
+The player selects a suspect and may provide reasoning or choose evidence supporting the conclusion. Before submission, show whether the action is final.
 
-- `generating`
-- `active`
-- `completed`
-- `failed`
+The server must:
+1. Authenticate the user and verify case ownership.
+2. Verify that the case is active and accusation rules permit submission.
+3. Validate the selected suspect ID and any submitted board/evidence references.
+4. Enforce the configured attempt policy.
+5. Compare the selected suspect ID against the canonical culprit ID.
+6. Calculate deterministic score fields.
+7. Save the result and complete the case using a safe state transition.
+8. Return only the fields permitted after completion.
 
-The `solution` field is private server-side data. It must never be serialized as part of public case responses.
+Do not ask Gemini to determine whether the selected culprit is correct.
 
-For a small initial implementation, suspects, timeline, evidence metadata, and the solution may be embedded in the case document. Large media assets should be stored separately in object storage.
+Initial scoring may use a simple correct/incorrect result. More detailed reasoning scores should be introduced only with a clear, testable rubric. Do not claim to assess reasoning quality if the system has no defined scoring rules.
 
-If case documents approach MongoDB's document size limit, move evidence and timeline records into separate collections.
+## FR-12: Results and solution reveal
 
-## 9.3 InvestigationProgress
+After an authorized final accusation, show:
+- Correct/incorrect result.
+- Actual culprit.
+- Motive and method.
+- Key timeline events.
+- Decisive evidence and why it matters.
+- Explanations for red herrings and contradictions.
+- Why other suspects were less likely.
+- Score and elapsed time if tracked.
+- Actions to review the case or return to the dashboard.
 
-Fields:
+The reveal must explain the answer using facts that were available to discover. The complete solution is accessible only after completion or through an explicitly authorized administrative path.
 
-- `_id`
-- `userId`
-- `caseId`
-- `openedEvidenceIds`
-- `notes`
-- `status`
-- `startedAt`
-- `lastActivityAt`
-- `completedAt`
+## FR-13: Dashboard and case history
 
-Create a unique compound index on `{ userId, caseId }` when one progress record per user per case is intended.
-
-## 9.4 Accusation
-
-Fields:
-
-- `_id`
-- `userId`
-- `caseId`
-- `selectedSuspectId`
-- `reasoning`
-- `isCorrect`
-- `score`
-- `submittedAt`
-
-Enforce the single-final-accusation policy at the database and service levels. If the product later supports multiple attempts, revise the data contract explicitly.
-
-## 9.5 MediaAsset
-
-Fields:
-
-- `_id`
-- `caseId`
-- `evidenceId`
-- `mediaType`
-- `storageKey`
-- `mimeType`
-- `sizeBytes`
-- `createdAt`
-
-Store media references and metadata in MongoDB, not large binary files.
-
-Generated media should be stored in private object storage. Access should be authorized through short-lived signed URLs or a protected media endpoint.
+Show active and completed cases, title, difficulty, theme, last activity, progress, and score where available. Users can resume active cases and revisit completed results. Case deletion must follow the documented retention policy and must not leave accessible orphaned private media or board data.
 
 ---
 
-# 10. Gemini Service Design
+# 6. Canonical case contract and validation
 
-## 10.1 Service Responsibilities
+## 6.1 Conceptual case structure
 
-Create a dedicated Gemini integration module responsible for:
+The full production schema is defined in `DATA_MODEL.md`. At minimum, a case includes:
+- Public metadata: title, category, difficulty, summary, incident description, theme ID.
+- Public entities: suspects, timeline, evidence artifacts, allowed relationships.
+- Private solution: culprit ID, motive, method, rationale, decisive evidence IDs, red-herring explanations, and consistency metadata.
+- Generation metadata: provider/model/version and validation status, with private details kept server-side.
+- Lifecycle status: generating, active, completed, or failed.
 
-- Model configuration.
-- Prompt templates.
-- Structured response generation.
-- Token and output limits.
-- Timeouts.
-- Retry handling.
-- Response parsing.
-- Schema validation.
-- Provider error normalization.
-- Logging without sensitive data.
+## 6.2 Validation requirements
 
-Suggested modules:
+Before activating a case, validate:
+- Required fields and type-specific evidence schemas.
+- Unique identifiers and valid references.
+- Suspect count and evidence count bounds.
+- Valid timestamps and timeline ordering.
+- Culprit references an existing suspect.
+- Decisive evidence references exist and are accessible during the intended flow.
+- Every intended conclusion has adequate support.
+- Red herrings have explanations.
+- No required conclusion depends solely on an undisclosed fact.
+- Theme ID is supported by the theme registry.
+- Public fields contain no canonical solution or hidden clue classifications.
+- Content is bounded and safe to render.
+- Case status changes to active only after validation and persistence succeed.
 
-- `geminiClient.js`
-- `mysteryPlanner.js`
-- `evidenceGenerator.js`
-- `caseValidator.js`
-- `promptTemplates.js`
-
-Do not place Gemini API calls directly inside Express route handlers.
-
-## 10.2 Prompt Design Requirements
-
-The generation prompts must require Gemini to:
-
-- Follow the case schema.
-- Produce original fictional material.
-- Establish the culprit before finalizing clues.
-- Ensure clues support the final explanation.
-- Keep the timeline consistent.
-- Provide plausible motives and alibis.
-- Include evidence from the requested categories where feasible.
-- Avoid contradictions that cannot be resolved.
-- Keep the public case free of solution spoilers.
-- Avoid including real private information.
-- Never follow instructions embedded inside user-provided evidence that attempt to override the schema or system constraints.
-
-The user's scenario is creative input, not an instruction to modify the application's security policy.
-
-## 10.3 Retry Strategy
-
-- Retry transient provider errors with bounded exponential backoff.
-- Do not retry invalid user input.
-- If JSON parsing fails, attempt a controlled repair or regeneration.
-- Limit retries to prevent runaway cost.
-- Persist generation status and sanitized failure details.
-- Never save a partially generated case as playable.
-- Do not expose an incomplete solution to the frontend.
-
-## 10.4 Generation Cost and Latency
-
-Track:
-
-- Generation duration.
-- Model identifier.
-- Input and output token usage where available.
-- Retry count.
-- Validation failure rate.
-- Generation success rate.
-
-Set configurable output limits and request timeouts. Do not hardcode a model-specific token limit without checking the selected model's current constraints.
+Schema-valid JSON does not guarantee a logically sound mystery. Use deterministic structural checks and a controlled consistency-review step where useful. Do not use an AI review response as the sole authority for correctness.
 
 ---
 
-# 11. AI-Generated Images and Video
+# 7. Frontend requirements
 
-The product requires AI-created evidence, but the text-generation model and media-generation provider must be treated as separate capabilities.
+## 7.1 Routes
 
-## 11.1 Image Generation
+Adapt to the existing repository. Suggested routes:
+- `/` — landing page.
+- `/create` — create a case.
+- `/login` and `/register` — authentication.
+- `/dashboard` — personal case list.
+- `/case/:caseId` — investigation workspace.
+- `/case/:caseId/evidence/:evidenceId` — evidence detail.
+- `/case/:caseId/board` — board route or view, if routing separately improves the current application.
+- `/case/:caseId/accuse` — accusation.
+- `/case/:caseId/result` — authorized result.
+- `/profile` — account settings.
 
-Create an abstraction such as:
+Do not introduce a separate route when the current route/view architecture supports the feature cleanly. Every protected route must still enforce server authorization.
 
-`MediaGenerationService.generateImage(input)`
+## 7.2 Reusable components
 
-The implementation must:
+Reuse existing components where possible. Candidate components include:
+- `CaseHeader`, `CaseCard`, `CaseThemeProvider`.
+- `SuspectCard`, `SuspectProfile`.
+- `EvidenceCard`, `EvidenceFilter`, `EvidenceViewer`.
+- `Timeline`.
+- `EvidenceBoard`, `BoardCanvas`, `BoardItem`, `BoardConnection`, `ConnectionEditor`.
+- `TheoryEditor`, `ContradictionAnnotation`.
+- `InvestigationNotes`.
+- `LoadingState`, `ErrorState`, `EmptyState`, `ToastNotification`.
+- `AccusationDialog`, `ResultSummary`.
 
-- Generate fictional visual evidence.
-- Associate each image with its case and evidence ID.
-- Store the result in private object storage.
-- Save metadata in MongoDB.
-- Handle failed generation without failing the entire investigation unnecessarily.
-- Provide an honest fallback if no image is available.
+These are conceptual responsibilities, not a mandate to create every component as a separate file. Keep modules cohesive and avoid excessive abstraction.
 
-If Gemini supports image generation for the configured model and account, use the supported capability. Otherwise, integrate a compatible image-generation provider through an adapter.
+## 7.3 Design and interaction rules
 
-## 11.2 Video Generation
-
-Create an abstraction such as:
-
-`MediaGenerationService.generateVideo(input)`
-
-Use a video-generation provider only if the required API, permissions, and model capability are available.
-
-The first release may represent surveillance evidence using generated still frames and timestamped descriptions. This is preferable to a misleading fake video player.
-
-## 11.3 Media Integrity
-
-All generated evidence must be clearly fictional within the product context.
-
-- Do not impersonate real people or real institutions.
-- Do not use real personal messaging data.
-- Avoid using real identifying details in generated case materials.
-- Keep generated media private to its case owner.
-- Do not accept arbitrary media URLs from model output without validation.
-- Validate file size, MIME type, storage permissions, and retrieval authorization.
-
----
-
-# 12. Security and Privacy Requirements
-
-Security is mandatory, not optional.
-
-## 12.1 Authentication and Authorization
-
-- Hash passwords securely.
-- Use HTTP-only, secure cookies in production.
-- Enforce ownership checks on every case-specific endpoint.
-- Never trust a case ID supplied by the client without authorization.
-- Protect against broken object-level authorization.
-- Prevent users from reading another user's notes, evidence, or solution.
-
-## 12.2 Secret Management
-
-Environment variables must be used for secrets and environment-specific settings.
-
-Example `.env.example`:
-
-```env
-NODE_ENV=development
-PORT=5000
-MONGODB_URI=
-GEMINI_API_KEY=
-GEMINI_MODEL=
-JWT_SECRET=
-CLIENT_URL=http://localhost:5173
-```
-
-Never commit real `.env` files, credentials, API keys, or production secrets.
-
-## 12.3 Input Security
-
-- Validate all request bodies and path parameters.
-- Limit prompt length.
-- Rate-limit generation and authentication endpoints.
-- Apply request-size limits.
-- Configure CORS for known application origins.
-- Use Helmet or equivalent security headers.
-- Prevent MongoDB query injection.
-- Escape user-generated content in rendered UI.
-- Validate media access and storage references.
-
-## 12.4 AI Security
-
-- Treat model output as untrusted input.
-- Validate every generated case before saving.
-- Separate public case content from private solution data.
-- Avoid returning raw prompts containing hidden solution information.
-- Prevent the assistant from disclosing hidden data through tool output or error messages.
-- Never let generated content determine authorization or database permissions.
+- Follow `DESIGN_SPEC.md` for shared design tokens and component conventions.
+- Keep navigation and core interaction patterns consistent across cases.
+- Apply the case theme through validated theme tokens.
+- Do not use color alone to distinguish status or relationship type.
+- Provide visible keyboard focus and semantic controls.
+- Support reduced-motion preferences.
+- Use pointer interactions as an enhancement, not the only way to manipulate the board.
+- Keep loading, saving, empty, success, and failure states explicit.
+- Avoid unnecessary animation, decorative complexity, and layout shifts.
+- Do not ship dead buttons, placeholder links, fake progress, or unimplemented actions.
+- Ensure long case names, long evidence content, and small screens do not break the layout.
 
 ---
 
-# 13. Error Handling
+# 8. API and persistence contracts
 
-The application must handle:
+`API.md` defines exact endpoints, request/response schemas, error envelopes, authorization rules, and status codes. `DATA_MODEL.md` defines MongoDB schemas, indexes, lifecycle, and serialization boundaries. Update those documents before or alongside implementation when this specification introduces a contract change.
 
+The Evidence Board will require backend operations to:
+- Retrieve the authenticated user's board for an authorized case.
+- Create or update board state.
+- Validate placed item references against public case entities.
+- Validate connection endpoints and relationship types.
+- Persist theories and contradiction annotations.
+- Support safe reset/clear behavior if approved.
+- Return the saved version/state to the client.
+
+Use existing endpoint naming conventions where possible. Do not invent a parallel API style or silently change established response envelopes.
+
+The API must enforce:
+- Authentication and ownership on every board operation.
+- Maximum item, connection, annotation, and payload sizes.
+- Valid IDs and allowed relationship types.
+- Safe handling of stale or malformed state.
+- Explicit concurrency/version behavior where needed.
+- Public/private serialization that excludes the canonical solution.
+- Stable error codes and safe user-facing messages.
+
+---
+
+# 9. Security and privacy requirements
+
+Security is mandatory.
+
+- Hash passwords with a maintained password-hashing library; never store plaintext passwords.
+- Use secure HTTP-only cookies for cookie-based sessions and apply CSRF protection where required by the selected deployment model.
+- Enforce ownership on every case, evidence, board, note, result, and media operation.
+- Never trust a case ID, suspect ID, evidence ID, role, score, or completion state supplied by the client without validation.
+- Keep provider keys and database credentials server-side.
+- Validate and bound all request bodies, path/query parameters, text fields, and media.
+- Apply rate limits to authentication, generation, and other abuse-prone endpoints.
+- Configure CORS for known origins, security headers, request-size limits, and safe error handling.
+- Treat AI output as untrusted input; validate and render it safely.
+- Keep canonical solution fields, private clue classifications, raw prompts containing solution details, and answer-bearing metadata out of pre-completion responses.
+- Keep private media in private storage with authorized delivery or short-lived signed URLs.
+- Do not log passwords, tokens, full private solutions, or unnecessary personal data.
+- Keep user-created notes, theories, and board state private to their owner.
+- Test cross-user access and solution non-disclosure through direct API/network requests, not just the visible UI.
+
+---
+
+# 10. Error handling and resilience
+
+Handle at least:
 - Invalid scenario input.
-- Authentication failure.
-- Unauthorized case access.
-- Case not found.
-- Generation timeout.
-- Gemini rate limits.
-- Gemini service outage.
-- Invalid AI output.
-- Database connection failure.
-- Missing generated media.
-- Duplicate accusation submissions.
-- Network disconnection.
-- Invalid evidence IDs.
-- Failed save operations.
+- Authentication failure and expired session.
+- Unauthorized case or board access.
+- Missing case, evidence, or board item.
+- Invalid or oversized board state.
+- Conflicting or stale board updates.
+- AI provider timeout, rate limit, outage, and malformed output.
+- Database connection or write failure.
+- Missing media.
+- Duplicate accusation.
+- Network interruption.
+- Failed board save and failed reset.
 
-User-facing errors should be actionable and concise.
-
-Example:
-
-"The mystery could not be generated right now. Your prompt is still available. Please try again."
-
-Do not show raw stack traces, API keys, database connection strings, or internal solution data.
+Expected errors must use the documented API envelope. Do not return stack traces, secrets, database internals, raw provider responses, or private solution data. Preserve unsaved user input where practical and provide a clear retry path.
 
 ---
 
-# 14. Testing Requirements
+# 11. Testing requirements
 
-## 14.1 Unit Tests
+The full checklist is in `ACCEPTANCE_TESTS.md`. The following checks are required for the Interactive Evidence Board.
 
-Test:
-
-- Request validation.
-- Case schema validation.
-- Suspect reference integrity.
-- Timeline validation.
-- Evidence relationship validation.
-- Culprit comparison.
-- Score calculation.
-- Public/private case serialization.
-- Authentication helpers.
-- Ownership checks.
-
-## 14.2 Integration Tests
+## 11.1 Unit tests
 
 Test:
+- Board state validation.
+- Valid and invalid item references.
+- Connection endpoint validation.
+- Allowed relationship types.
+- Card position normalization and bounds.
+- Theory and annotation validation.
+- Removal/cleanup rules for board items and connections.
+- Public/private serialization.
+- Theme ID validation and fallback.
+- Ownership and authorization helpers where unit-testable.
 
-- Registration and login.
-- Case generation with a mocked Gemini client.
-- MongoDB persistence.
-- Evidence retrieval.
-- Progress saving and restoration.
-- Notes persistence.
-- Final accusation.
-- Result reveal authorization.
-- Case deletion.
-- AI provider failure handling.
+## 11.2 Integration tests
 
-## 14.3 End-to-End Tests
+Test:
+- Retrieving and saving board state for an authorized owner.
+- Rejection of another user's case or board.
+- Persistence across API requests and reload.
+- Invalid evidence/suspect IDs.
+- Oversized or malformed board payloads.
+- Stale-version/conflicting updates if versioning is implemented.
+- Board reset behavior.
+- Case deletion and related board-state cleanup.
+- No solution or hidden clue labels in public responses.
 
-A complete Playwright scenario must:
+## 11.3 End-to-end tests
 
-1. Open the landing page.
-2. Start a new mystery.
-3. Submit a valid scenario.
-4. Wait for generation to complete.
-5. Open the investigation workspace.
-6. Inspect multiple evidence items.
-7. Open suspect profiles.
-8. Submit a final accusation.
-9. View the result.
-10. Verify the correct culprit is revealed after completion.
+A core board journey must:
+1. Open an active case.
+2. Add at least two evidence items and one suspect to the board.
+3. Move an item and create a labeled connection.
+4. Add a theory and annotate a contradiction.
+5. Navigate away and return or refresh.
+6. Verify that the board state is restored.
+7. Remove a connection or board item and verify the documented behavior.
+8. Verify the board remains usable at a narrow mobile viewport.
+9. Verify keyboard-accessible alternatives for core interactions.
+10. Verify that the browser's network responses do not expose private solution fields.
 
-Additional scenarios:
+Use stable fixtures and deterministic data. Do not rely on a live AI provider for routine board tests.
 
-- Invalid scenario submission.
-- Generation failure.
-- Unauthorized case access.
-- Mobile navigation.
-- Empty dashboard.
-- Resume active case.
-- Duplicate final accusation.
-- Missing media fallback.
-- Solution leakage prevention.
+## 11.4 AI quality tests
 
-## 14.4 AI Quality Tests
-
-Use deterministic fixtures and mocked responses for core logic.
-
-Separately evaluate generated mysteries for:
-
+Evaluate generated cases separately for:
 - Schema compliance.
 - Timeline consistency.
 - Evidence relevance.
-- Culprit explainability.
-- Appropriate difficulty.
-- Originality.
-- Solution leakage.
-- Contradiction quality.
+- Valid references.
+- Decisive clue availability.
+- Red-herring explanations.
+- Theme metadata validity.
+- Solution non-disclosure.
+- Overall solvability and appropriate difficulty.
 
-AI-generated output should not be used as the only test oracle for deterministic application behavior.
-
----
-
-# 15. Performance and Reliability
-
-Initial targets:
-
-- Landing page should render promptly on a typical broadband connection.
-- Non-AI API requests should generally complete within 500 ms at the 95th percentile under a modest test load.
-- AI generation should expose a clear loading state and avoid blocking unrelated requests.
-- Large images and video must not be stored directly in MongoDB.
-- Evidence lists should support pagination or bounded retrieval.
-- Case retrieval should avoid unnecessary repeated database queries.
-- Long-running generation must have explicit timeout and failure behavior.
-
-These are engineering targets, not guarantees. AI latency depends on the selected model, output size, provider load, and media-generation requirements.
+AI-generated output must not be the only test oracle for deterministic game behavior.
 
 ---
 
-# 16. Environment and Project Structure
+# 12. Performance and scalability
 
-Recommended monorepo structure:
+The system should be designed for growth toward 10,000 registered users, but capacity must be demonstrated through load testing rather than inferred from the user count.
+
+- Keep API instances stateless and horizontally scalable.
+- Bound board payload sizes, card counts, connections, and text lengths.
+- Store board state in the existing database initially; do not add a graph database solely for this feature.
+- Avoid saving the entire board on every pointer movement. Debounce or batch position updates and provide explicit save/dirty-state behavior where appropriate.
+- Avoid unbounded polling, full-document over-fetching, and repeated unnecessary requests.
+- Add indexes based on verified query patterns.
+- Keep AI generation separate from normal API latency using a durable job/worker design when needed.
+- Track request latency, error rates, database saturation, generation queue age, and provider usage.
+- Validate the workload through staging load tests with realistic case and board sizes.
+- Define explicit performance targets and record measured results.
+
+See `SYSTEM_DESIGN.md` for workload modelling, deployment, queue processing, observability, backups, and scaling stages.
+
+---
+
+# 13. Implementation workflow — mandatory
+
+**Implement one feature at a time. Do not move to the next feature until the current feature has passed its required checks.**
+
+For each feature:
+1. Read the relevant project documents and inspect the existing repository.
+2. Define acceptance criteria and identify impacted contracts.
+3. Implement the smallest complete feature slice.
+4. Run unit tests.
+5. Run integration tests for the affected boundaries.
+6. Run applicable end-to-end/acceptance tests.
+7. Run relevant lint, typecheck, and build checks.
+8. Fix failures and rerun the affected checks.
+9. Review the diff for regressions, security risks, complexity, dead code, and unrelated changes.
+10. Update the relevant documentation and record actual test results.
+11. Mark the feature DONE only after its completion gate passes.
+12. Start the next feature.
+
+If a required check fails, stop and fix it. If a check cannot run due to an environment blocker, mark the feature BLOCKED and document the reason; do not call it passed. Any exception requires explicit approval and must document the unverified risk.
+
+Follow `FEATURE_DELIVERY_WORKFLOW.md` and `AI_DEVELOPMENT_RULES.md` for the full procedure.
+
+## 13.1 Suggested next feature sequence
+
+The current next feature is **Interactive Evidence Board**. Do not start the next item until the current feature passes its completion gate.
+
+1. **Board state and basic interactions:** place evidence/suspect cards, move them, create/remove connections, and save/restore state.
+2. **Theories and contradictions:** add/edit/delete user-authored theories and contradiction annotations.
+3. **Case theme presets:** apply validated theme configuration to the board and case workspace; if theme infrastructure is required by the first board implementation, implement the minimal necessary part in that same feature scope.
+4. **Enhanced deduction and verdict flow:** connect board reasoning to accusation UI only after the base board is stable.
+5. **Retention features:** daily cases, progression, or other features only after user testing supports them.
+
+This is a suggested sequence, not permission to bundle unrelated work. Each item must be independently scoped and verified.
+
+---
+
+# 14. Project structure and repository rules
+
+Inspect the existing repository before creating or moving files. Preserve established conventions where they work.
+
+A possible organization for a repository already using a client/server split:
 
 ```text
-ai-mystery-room/
-├── client/
-│   ├── public/
-│   └── src/
-│       ├── assets/
-│       ├── components/
-│       ├── features/
-│       │   ├── auth/
-│       │   ├── dashboard/
-│       │   ├── mystery/
-│       │   ├── investigation/
-│       │   ├── evidence/
-│       │   └── accusation/
-│       ├── hooks/
-│       ├── layouts/
-│       ├── pages/
-│       ├── services/
-│       ├── context/
-│       ├── utils/
-│       ├── App.jsx
-│       └── main.jsx
-│
-├── server/
-│   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   │   ├── ai/
-│   │   │   ├── mystery/
-│   │   │   ├── evidence/
-│   │   │   ├── media/
-│   │   │   └── investigation/
-│   │   ├── validators/
-│   │   ├── utils/
-│   │   ├── app.js
-│   │   └── server.js
-│   └── tests/
-│
-├── docs/
-│   ├── SPEC.md
-│   ├── API.md
-│   ├── DATA_MODEL.md
-│   └── TESTING.md
-│
-├── .gitignore
-├── .env.example
-├── package.json
-└── README.md
+client/
+  src/
+    features/
+      auth/
+      dashboard/
+      mystery/
+      investigation/
+      evidence/
+      evidence-board/
+      accusation/
+    components/
+    services/
+    hooks/
+    context/
+    utils/
+
+server/
+  src/
+    config/
+    middleware/
+    models/
+    routes/
+    controllers/
+    services/
+      ai/
+      mystery/
+      evidence/
+      investigation/
+      evidence-board/
+    validators/
+    utils/
+  tests/
+
+docs/
+  SPEC.md
+  DESIGN_SPEC.md
+  USER_FLOWS.md
+  API.md
+  DATA_MODEL.md
+  ACCEPTANCE_TESTS.md
+  SYSTEM_DESIGN.md
+  AI_DEVELOPMENT_RULES.md
+  FEATURE_DELIVERY_WORKFLOW.md
 ```
 
-Codex must inspect the existing repository before creating this structure. If a repository already has an established layout, preserve it and adapt these responsibilities to the existing structure.
+This is a conceptual guide, not a mandate to reorganize a working repository. Use the smallest change consistent with the current architecture.
 
 ---
 
-# 17. Implementation Plan
+# 15. Definition of done
 
-Implement the product in the following order.
-
-## Phase 1: Foundation
-
-- Inspect the repository.
-- Establish frontend and backend entry points.
-- Configure environment variables.
-- Connect MongoDB.
-- Implement Express middleware.
-- Set up routing, global error handling, and validation.
-- Establish a consistent frontend design system.
-
-**Exit criteria:** The frontend and backend run locally, and the backend can connect to MongoDB.
-
-## Phase 2: Core UI
-
-- Landing page.
-- Mystery creation page.
-- Dashboard.
-- Investigation workspace.
-- Suspect profiles.
-- Evidence viewer.
-- Accusation and result pages.
-- Responsive layouts.
-
-Initially, use deterministic fixture data to develop the complete user journey.
-
-**Exit criteria:** The entire investigation flow works with mock case data.
-
-## Phase 3: Case Data and Game Logic
-
-- Implement Mongoose schemas.
-- Implement case retrieval and ownership checks.
-- Implement evidence access.
-- Implement investigation progress.
-- Implement notes.
-- Implement final accusation evaluation.
-- Implement solution reveal.
-
-**Exit criteria:** A user can complete a fixture-based case without using Gemini.
-
-## Phase 4: Gemini Integration
-
-- Implement the Gemini client.
-- Create structured generation prompts.
-- Implement case generation.
-- Validate generated output.
-- Add bounded retries.
-- Persist validated cases.
-- Implement public/private serialization.
-
-**Exit criteria:** Valid scenarios produce playable, persisted cases, and malformed outputs fail safely.
-
-## Phase 5: Media Generation
-
-- Implement image-generation adapter.
-- Add secure media storage.
-- Add media metadata.
-- Add video-generation integration if supported.
-- Implement missing-media fallbacks.
-
-**Exit criteria:** Evidence displays actual generated assets when available and honest fallbacks when unavailable.
-
-## Phase 6: Security and Testing
-
-- Add authentication and authorization.
-- Test case ownership.
-- Test solution leakage prevention.
-- Add unit, integration, and end-to-end tests.
-- Validate responsive behavior.
-- Test provider failures and rate limits.
-
-**Exit criteria:** Critical acceptance tests pass and security-sensitive endpoints are covered.
-
-## Phase 7: Production Readiness
-
-- Configure production environment.
-- Configure hosting and database access.
-- Add structured logs and monitoring.
-- Configure rate limits and CORS.
-- Validate build and deployment.
-- Document setup, testing, and troubleshooting.
-
-**Exit criteria:** A clean deployment can run the complete product without exposing secrets or private case solutions.
+The product is not complete merely because screens render. A release requires:
+- [ ] The user can create or open a valid mystery case.
+- [ ] A playable case has a predetermined canonical solution.
+- [ ] The backend validates the case before activation.
+- [ ] Suspects, evidence, and timeline references are consistent.
+- [ ] The user can inspect multiple evidence types.
+- [ ] The Interactive Evidence Board supports adding, positioning, connecting, and removing board items.
+- [ ] The user can record theories and annotate contradictions.
+- [ ] Board state persists and restores accurately.
+- [ ] Board data is private to its owner and case.
+- [ ] Case themes use validated presets and do not alter game truth.
+- [ ] Accusation correctness is determined server-side.
+- [ ] The solution is revealed only after authorized completion.
+- [ ] The UI is responsive and keyboard-accessible for core interactions.
+- [ ] Loading, empty, error, and missing-media states are handled.
+- [ ] Relevant unit, integration, and E2E tests pass.
+- [ ] Security-sensitive APIs are tested for authorization and solution leakage.
+- [ ] Required build and static checks pass.
+- [ ] Documentation matches the implemented behavior.
+- [ ] Known limitations and unverified checks are reported honestly.
 
 ---
 
-# 18. Definition of Done
+# 16. Mandatory instructions for coding agents
 
-The first production-ready version is complete when:
-
-- [ ] The user can create a mystery from a scenario.
-- [ ] Gemini generates a structured fictional case.
-- [ ] The backend validates the case before saving it.
-- [ ] Every playable case has a predetermined culprit.
-- [ ] The user can inspect multiple suspects and evidence types.
-- [ ] Evidence references and timestamps are internally consistent.
-- [ ] The user can save and resume investigation progress.
-- [ ] The user can submit a final accusation.
-- [ ] The server evaluates the accusation deterministically.
-- [ ] The correct solution is revealed only after completion.
-- [ ] The result explains the decisive evidence.
-- [ ] User-owned cases are isolated from other users.
-- [ ] Generated media is stored and retrieved securely.
-- [ ] The UI works on desktop, tablet, and mobile.
-- [ ] Error states and missing media are handled gracefully.
-- [ ] Core unit, integration, and end-to-end tests pass.
-- [ ] Environment setup and project documentation are complete.
-
----
-
-# 19. Mandatory Instructions for Codex
-
-These rules apply to all implementation work.
-
-1. Read this specification before making architectural or product decisions.
-2. Inspect the existing repository before creating, moving, or replacing files.
-3. Treat `docs/SPEC.md` as the authoritative product specification once this document has been committed there.
-4. Do not implement unrelated features without approval.
-5. Do not introduce additional frameworks or infrastructure without a clear technical reason.
-6. Do not expose the culprit or private solution through client-facing APIs before the case is completed.
-7. Do not use Gemini to evaluate the final accusation when a deterministic comparison is sufficient.
-8. Do not fabricate generated media or claim that a real video exists when it does not.
-9. Do not hardcode API keys, passwords, or deployment secrets.
-10. Do not silently ignore schema validation failures.
-11. Do not duplicate business logic across route handlers and frontend components.
-12. Do not replace working repository conventions without justification.
-13. Write tests for security-sensitive and core business logic.
-14. Run the available tests and build checks after each meaningful implementation stage.
-15. Fix regressions before proceeding.
-16. Keep documentation synchronized with implemented API contracts and data models.
-17. If a requirement is ambiguous, choose the smallest implementation consistent with this specification and document the decision.
-18. If a requirement cannot be implemented with the configured provider or infrastructure, explain the limitation and implement the documented fallback.
-19. Do not mark a task complete unless its acceptance criteria have been verified.
-20. At the end of each phase, report changed files, completed functionality, test results, known issues, and the next implementation phase.
-
-## Change-Control Rule
-
-Any proposed change to the product's core behavior, data model, API contract, security policy, or investigation rules must be documented in `docs/SPEC.md` before or alongside its implementation.
-
-If source code and the specification disagree, identify the discrepancy and resolve it explicitly. Do not silently treat existing code as a replacement for the approved specification.
+1. Read this specification and the relevant supporting documents before implementation.
+2. Inspect the actual repository, package scripts, dependencies, and current behavior before editing.
+3. Treat this file as the product source of truth, but keep detailed API, data, design, flow, and test contracts synchronized with their supporting documents.
+4. Follow `AI_DEVELOPMENT_RULES.md` and `FEATURE_DELIVERY_WORKFLOW.md`.
+5. Implement one feature at a time; do not proceed until the current feature's required unit, integration, acceptance/E2E, and quality checks pass.
+6. Do not invent endpoints, fields, routes, components, scripts, or dependencies without inspecting the code and contracts.
+7. Do not implement unrelated features without approval.
+8. Do not expose the culprit, private solution, hidden clue labels, or answer-bearing metadata before authorized reveal.
+9. Do not use AI to determine accusation correctness when deterministic comparison is sufficient.
+10. Do not trust AI-generated content until schema and semantic validation pass.
+11. Do not create arbitrary AI-generated CSS. Use validated theme IDs and application-defined tokens.
+12. Do not ship mock data or fake progress in production paths.
+13. Do not swallow exceptions, suppress valid failing tests, or claim tests passed when they were not run.
+14. Do not add complexity or infrastructure without a clear requirement.
+15. Do not leave dead controls, placeholder handlers, debug output, or unrelated changes.
+16. Update affected documents when behavior, API, schema, design, or security boundaries change.
+17. If requirements conflict or are ambiguous, report the conflict and choose the smallest safe, reversible resolution after documenting it.
+18. At the end of each feature, report changed files, behavior implemented, tests actually run and results, known issues, and whether the completion gate passed.
 
 ---
 
-# 20. Initial Product Decisions
-
-The following decisions establish the baseline for version 1.
+# 17. Initial product decisions
 
 | Decision | Baseline |
 |---|---|
 | Product | AI Mystery Room |
-| Frontend | React + Vite |
-| Backend | Node.js + Express |
-| Database | MongoDB + Mongoose |
-| AI | Google Gemini |
-| Implementation language | JavaScript |
+| Frontend | React + Vite, subject to repository inspection |
+| Backend | Node.js + Express, subject to repository inspection |
+| Database | MongoDB + Mongoose, subject to repository inspection |
+| AI provider | Google Gemini through a backend adapter |
+| Language | Preserve repository convention; JavaScript is the default for new code unless TypeScript is already established |
 | Core gameplay | Single-player |
-| Case creation | User-provided scenario |
-| Culprit selection | Fixed before investigation |
-| Evidence | Structured fictional evidence |
-| Image evidence | Generated assets where supported |
-| Video evidence | Generated video if supported; otherwise transparent simulation |
-| Final evaluation | Deterministic server-side comparison |
-| Difficulty | Easy, Medium, Hard |
-| Persistence | MongoDB |
-| Authentication | JWT-based secure session |
-| Testing | Unit, integration, and Playwright E2E |
-| Deployment | Environment-driven, provider-agnostic |
+| Case creation | User-provided scenario and/or available curated cases |
+| Canonical solution | Fixed before investigation |
+| Evidence | Structured fictional artifacts |
+| Core gameplay feature | Interactive Evidence Board |
+| Board state | User-owned and persisted per case |
+| Case themes | Validated application-defined theme presets |
+| Accusation | Deterministic server-side comparison |
+| Reveal | Authorized after case completion |
+| Media | Stored securely; missing assets have honest fallbacks |
+| Testing | Unit, integration, and Playwright E2E where appropriate |
+| Scaling | Validate with realistic load tests; do not claim capacity without evidence |
 
 ---
 
-# 21. Final Product Principle
+# 18. Final product principle
 
-**AI creates the mystery. The backend preserves the truth. The user discovers the truth through evidence.**
+**AI creates the mystery. The backend preserves the truth. The evidence board lets the player build a theory. The player discovers the truth through evidence.**
 
-The AI must create the narrative, characters, clues, and supporting media. The backend must preserve a canonical solution and enforce authorization. The frontend must reveal information progressively and provide an intuitive investigative experience.
+The intended result is a coherent detective game in which the user actively investigates, compares clues, tests theories, identifies contradictions, and reaches a defensible conclusion—not a chatbot that generates a story and invents an answer at the end.
 
-The result should be a coherent detective game in which the user solves a mystery through observation and reasoning, rather than a chatbot that generates a story and invents an answer at the end.
-
-**End of Specification — Version 1.0.0**
+**End of Specification — Version 1.1.0**

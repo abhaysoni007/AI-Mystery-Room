@@ -16,3 +16,19 @@ Players select the culprit, motive, method, and supporting clues. Score the qual
 5. Daily Cases and Detective Progression
 
 Add shared daily challenges, personal stats, achievements, and a reason to return after completing the first case.
+
+
+
+
+
+Markdown files to use
+File	Action	Purpose
+SPEC.md	Update	Define the Evidence Board as a core gameplay feature and specify its scope.
+DESIGN_SPEC.md	Update	Define the board layout, evidence cards, connections, visual states, responsive behavior, and case-specific theming.
+USER_FLOWS.md	Update	Document how players collect evidence, connect clues, form theories, identify contradictions, and revisit their work.
+DATA_MODEL.md	Update	Define how board layouts, evidence connections, theories, and contradiction annotations are stored and validated.
+API.md	Update	Define endpoints and request/response contracts for retrieving and saving board state.
+ACCEPTANCE_TESTS.md	Update	Add verifiable tests for interactions, persistence, accessibility, responsiveness, authorization, and themed cases.
+SYSTEM_DESIGN.md	Review/update if needed	Ensure board state and concurrent saves scale appropriately. Avoid adding infrastructure without evidence it is needed.
+AI_DEVELOPMENT_RULES.md	Already created	Require the coding agent to follow the project specifications and maintain readable, testable code.
+FEATURE_DELIVERY_WORKFLOW.md	Mandatory	Enforce the one-feature-at-a-time process and test gates.
