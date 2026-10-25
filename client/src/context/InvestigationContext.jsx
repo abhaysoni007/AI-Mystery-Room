@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { SAMPLE_CASE, SAMPLE_CASE_SOLUTIONS } from '../data/sampleCase';
+import * as api from '../services/api';
 
 const InvestigationContext = createContext(null);
 
@@ -8,7 +9,8 @@ export function InvestigationProvider({ children }) {
     const saved = localStorage.getItem('ai_mystery_cases');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {
         // Fallback
       }
@@ -48,6 +50,34 @@ export function InvestigationProvider({ children }) {
     return null;
   });
 
+  // Sync case list from backend API on mount
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .getCases()
+      .then((serverCases) => {
+        if (!isMounted || !Array.isArray(serverCases) || serverCases.length === 0) return;
+        setCases((prev) => {
+          const sampleExists = serverCases.some((c) => c.id === SAMPLE_CASE.id);
+          const combined = sampleExists ? serverCases : [SAMPLE_CASE, ...serverCases];
+          const seen = new Set();
+          return combined.filter((c) => {
+            if (seen.has(c.id)) return false;
+            seen.add(c.id);
+            return true;
+          });
+        });
+      })
+      .catch(() => {
+        // Silently use local storage cases when offline
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Sync localStorage
   useEffect(() => {
     localStorage.setItem('ai_mystery_cases', JSON.stringify(cases));
   }, [cases]);
@@ -64,7 +94,7 @@ export function InvestigationProvider({ children }) {
     }
   }, [result, currentCase]);
 
-  const selectCase = (caseId) => {
+  const selectCase = useCallback((caseId) => {
     const found = cases.find((c) => c.id === caseId) || SAMPLE_CASE;
     setCurrentCase(found);
 
@@ -89,9 +119,39 @@ export function InvestigationProvider({ children }) {
     } else {
       setResult(null);
     }
-  };
 
-  const openEvidence = (evidenceId) => {
+    // Attempt to load full dossier from API if not a built-in sample
+    if (caseId && caseId !== SAMPLE_CASE.id) {
+      api
+        .getCase(caseId)
+        .then((caseDoc) => {
+          if (caseDoc) {
+            setCurrentCase(caseDoc);
+          }
+        })
+        .catch(() => {});
+
+      api
+        .getProgress(caseId)
+        .then((serverProgress) => {
+          if (serverProgress) {
+            setProgress(serverProgress);
+          }
+        })
+        .catch(() => {});
+
+      api
+        .getResult(caseId)
+        .then((serverResult) => {
+          if (serverResult) {
+            setResult(serverResult);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [cases]);
+
+  const openEvidence = useCallback((evidenceId) => {
     setProgress((prev) => {
       if (prev.openedEvidenceIds.includes(evidenceId)) {
         return prev;
@@ -102,17 +162,25 @@ export function InvestigationProvider({ children }) {
         lastActivityAt: new Date().toISOString(),
       };
     });
-  };
 
-  const updateNotes = (newNotes) => {
+    if (currentCase?.id) {
+      api.updateProgress(currentCase.id, { openedEvidenceId: evidenceId }).catch(() => {});
+    }
+  }, [currentCase]);
+
+  const updateNotes = useCallback((newNotes) => {
     setProgress((prev) => ({
       ...prev,
       notes: newNotes,
       lastActivityAt: new Date().toISOString(),
     }));
-  };
 
-  const submitAccusation = (suspectId, reasoning = '') => {
+    if (currentCase?.id) {
+      api.updateProgress(currentCase.id, { notes: newNotes }).catch(() => {});
+    }
+  }, [currentCase]);
+
+  const submitAccusation = useCallback((suspectId, reasoning = '') => {
     if (!currentCase) return null;
 
     const solution = SAMPLE_CASE_SOLUTIONS[currentCase.id] || {
@@ -160,10 +228,21 @@ export function InvestigationProvider({ children }) {
       prev.map((c) => (c.id === currentCase.id ? { ...c, status: 'completed' } : c))
     );
 
-    return accusationResult;
-  };
+    // Sync with backend API
+    api
+      .submitAccusation(currentCase.id, { suspectId, reasoning })
+      .then(() => api.getResult(currentCase.id))
+      .then((serverResult) => {
+        if (serverResult) {
+          setResult(serverResult);
+        }
+      })
+      .catch(() => {});
 
-  const createCase = ({ scenario, difficulty = 'medium', category = 'theft', length = 'standard' }) => {
+    return accusationResult;
+  }, [currentCase]);
+
+  const createCase = useCallback(({ scenario, difficulty = 'medium', category = 'theft', length = 'standard' }) => {
     const newId = `case_${Date.now()}`;
     const newCase = {
       ...SAMPLE_CASE,
@@ -183,17 +262,31 @@ export function InvestigationProvider({ children }) {
 
     setCases((prev) => [newCase, ...prev]);
     selectCase(newId);
-    return newCase;
-  };
 
-  const deleteCase = (caseId) => {
+    // Call server to generate in the background
+    api
+      .createCase({ scenario, category, difficulty, length })
+      .then((createdServerCase) => {
+        if (createdServerCase) {
+          setCases((prev) =>
+            prev.map((c) => (c.id === newId ? { ...createdServerCase, ...c } : c))
+          );
+        }
+      })
+      .catch(() => {});
+
+    return newCase;
+  }, [selectCase]);
+
+  const deleteCase = useCallback((caseId) => {
     setCases((prev) => prev.filter((c) => c.id !== caseId));
     localStorage.removeItem(`ai_mystery_progress_${caseId}`);
     localStorage.removeItem(`ai_mystery_result_${caseId}`);
     if (currentCase?.id === caseId) {
       setCurrentCase(SAMPLE_CASE);
     }
-  };
+    api.deleteCase(caseId).catch(() => {});
+  }, [currentCase]);
 
   return (
     <InvestigationContext.Provider
