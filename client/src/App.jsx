@@ -8,6 +8,9 @@ import { PlatformWalkthrough } from './components/walkthrough/PlatformWalkthroug
 import { LandingPage } from './pages/LandingPage';
 import { CreateMysteryPage } from './pages/CreateMysteryPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { InvestigationLayout } from './layouts/InvestigationLayout';
 import { CaseOverviewView } from './pages/investigation/CaseOverviewView';
 import { SuspectsView } from './pages/investigation/SuspectsView';
@@ -41,6 +44,11 @@ export default function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/create" element={<CreateMysteryPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/forget" element={<ForgotPasswordPage />} />
+              <Route path="/forgot" element={<Navigate to="/forget" replace />} />
+              <Route path="/forgot-password" element={<Navigate to="/forget" replace />} />
             </Route>
 
             {/* Type-Specific Evidence Viewer Suite */}

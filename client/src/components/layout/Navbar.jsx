@@ -72,7 +72,7 @@ export function Navbar() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => openAuthModal('login')}
+                onClick={() => navigate('/login')}
               >
                 <LogIn className="w-4 h-4 mr-1.5 stroke-[2.5]" />
                 SIGN IN
