@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { InvestigationProvider } from './context/InvestigationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { PlatformWalkthrough } from './components/walkthrough/PlatformWalkthrough';
 import { LandingPage } from './pages/LandingPage';
 import { CreateMysteryPage } from './pages/CreateMysteryPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -71,6 +72,7 @@ export default function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <PlatformWalkthrough />
         </BrowserRouter>
       </InvestigationProvider>
     </AuthProvider>

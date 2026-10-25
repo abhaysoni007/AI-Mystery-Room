@@ -105,15 +105,13 @@ export function AuthProvider({ children }) {
 
   const completeWalkthrough = useCallback(async () => {
     setIsWalkthroughOpen(false);
-    if (user) {
-      setUser((prev) => (prev ? { ...prev, hasCompletedWalkthrough: true } : prev));
-      try {
-        await api.updateWalkthrough(true);
-      } catch (e) {
-        // Silently catch in offline mode
-      }
+    setUser((prev) => (prev ? { ...prev, hasCompletedWalkthrough: true } : prev));
+    try {
+      await api.updateWalkthrough(true);
+    } catch (e) {
+      // Silently catch in unauthenticated or offline mode
     }
-  }, [user]);
+  }, []);
 
   const openAuthModal = useCallback((mode = 'login') => {
     setAuthModalMode(mode);
