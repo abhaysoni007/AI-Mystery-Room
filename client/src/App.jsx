@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { InvestigationProvider } from './context/InvestigationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -30,46 +31,48 @@ function MainLayout() {
 
 export default function App() {
   return (
-    <InvestigationProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Main Website / Dashboard Chrome */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/create" element={<CreateMysteryPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-          </Route>
+    <AuthProvider>
+      <InvestigationProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Main Website / Dashboard Chrome */}
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/create" element={<CreateMysteryPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+            </Route>
 
-          {/* Type-Specific Evidence Viewer Suite */}
-          <Route
-            path="/case/:caseId/evidence/:evidenceId"
-            element={<EvidenceViewerPage />}
-          />
+            {/* Type-Specific Evidence Viewer Suite */}
+            <Route
+              path="/case/:caseId/evidence/:evidenceId"
+              element={<EvidenceViewerPage />}
+            />
 
-          {/* Accusation and Post-Verdict Reveal */}
-          <Route
-            path="/case/:caseId/accuse"
-            element={<AccusationPage />}
-          />
-          <Route
-            path="/case/:caseId/result"
-            element={<ResultRevealPage />}
-          />
+            {/* Accusation and Post-Verdict Reveal */}
+            <Route
+              path="/case/:caseId/accuse"
+              element={<AccusationPage />}
+            />
+            <Route
+              path="/case/:caseId/result"
+              element={<ResultRevealPage />}
+            />
 
-          {/* Investigation Workspace Chrome */}
-          <Route path="/case/:caseId" element={<InvestigationLayout />}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<CaseOverviewView />} />
-            <Route path="suspects" element={<SuspectsView />} />
-            <Route path="evidence" element={<EvidenceView />} />
-            <Route path="timeline" element={<TimelineView />} />
-            <Route path="notes" element={<NotesView />} />
-          </Route>
+            {/* Investigation Workspace Chrome */}
+            <Route path="/case/:caseId" element={<InvestigationLayout />}>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<CaseOverviewView />} />
+              <Route path="suspects" element={<SuspectsView />} />
+              <Route path="evidence" element={<EvidenceView />} />
+              <Route path="timeline" element={<TimelineView />} />
+              <Route path="notes" element={<NotesView />} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </InvestigationProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </InvestigationProvider>
+    </AuthProvider>
   );
 }
