@@ -12,6 +12,7 @@ import { SuspectsView } from './pages/investigation/SuspectsView';
 import { EvidenceView } from './pages/investigation/EvidenceView';
 import { TimelineView } from './pages/investigation/TimelineView';
 import { NotesView } from './pages/investigation/NotesView';
+import { EvidenceViewerPage } from './pages/evidence/EvidenceViewerPage';
 
 function MainLayout() {
   return (
@@ -36,6 +37,12 @@ export default function App() {
             <Route path="/create" element={<CreateMysteryPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
+
+          {/* Type-Specific Evidence Viewer Suite */}
+          <Route
+            path="/case/:caseId/evidence/:evidenceId"
+            element={<EvidenceViewerPage />}
+          />
 
           {/* Investigation Workspace Chrome */}
           <Route path="/case/:caseId" element={<InvestigationLayout />}>
