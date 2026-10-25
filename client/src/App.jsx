@@ -5,6 +5,7 @@ import { InvestigationProvider } from './context/InvestigationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { PlatformWalkthrough } from './components/walkthrough/PlatformWalkthrough';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { LandingPage } from './pages/LandingPage';
 import { CreateMysteryPage } from './pages/CreateMysteryPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -42,8 +43,14 @@ export default function App() {
             {/* Main Website / Dashboard Chrome */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/create" element={<CreateMysteryPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+
+              {/* Protected Detective Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/create" element={<CreateMysteryPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Route>
+
+              {/* Authentication Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/forget" element={<ForgotPasswordPage />} />

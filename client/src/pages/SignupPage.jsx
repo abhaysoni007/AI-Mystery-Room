@@ -30,10 +30,19 @@ export function SignupPage() {
     }
   }, [countdown]);
 
-  // If already authenticated, redirect to dashboard or intended target
+  const getDestination = () => {
+    if (location.state?.from) {
+      if (typeof location.state.from === 'string') return location.state.from;
+      if (location.state.from.pathname) {
+        return `${location.state.from.pathname}${location.state.from.search || ''}`;
+      }
+    }
+    return '/dashboard';
+  };
+
+  // If already authenticated, redirect to destination
   if (isAuthenticated) {
-    const destination = location.state?.from || '/dashboard';
-    return <Navigate to={destination} replace />;
+    return <Navigate to={getDestination()} replace />;
   }
 
   const handleSignupSubmit = async (e) => {
@@ -66,8 +75,7 @@ export function SignupPage() {
     setIsLoading(true);
     try {
       await verifyOtp({ email: pendingEmail, otp: otp.trim(), purpose: 'signup' });
-      const destination = location.state?.from || '/dashboard';
-      navigate(destination);
+      navigate(getDestination(), { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid verification code. Please check and try again.');
     } finally {
@@ -106,17 +114,27 @@ export function SignupPage() {
           <div className="flex border-2 border-ink rounded-lg p-1 bg-paper mb-6">
             <Link
               to="/login"
+              state={location.state}
               className="flex-1 text-center py-2 font-display font-extrabold text-xs uppercase text-ink/70 hover:text-ink transition-colors"
             >
               SIGN IN
             </Link>
             <Link
               to="/signup"
+              state={location.state}
               className="flex-1 text-center py-2 font-display font-extrabold text-xs uppercase bg-neoYellow border-2 border-ink rounded shadow-hard-xs text-ink"
             >
               REGISTER
             </Link>
           </div>
+
+          {/* Clearance Required Notice (if redirected from a protected route) */}
+          {location.state?.from && !error && (
+            <div className="mb-5 p-3.5 bg-neoYellow/30 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+              <ShieldAlert className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
+              <span>CLEARANCE REQUIRED: You must be registered and signed in to access that restricted area.</span>
+            </div>
+          )}
 
           {/* Feedback Banners */}
           {error && (
@@ -214,7 +232,7 @@ export function SignupPage() {
 
               <div className="pt-4 border-t-2 border-ink/30 text-center font-mono text-xs text-muted">
                 <span>Already registered? </span>
-                <Link to="/login" className="font-bold text-ink underline hover:text-neoPurple">
+                <Link to="/login" state={location.state} className="font-bold text-ink underline hover:text-neoPurple">
                   Sign in to dossier
                 </Link>
               </div>

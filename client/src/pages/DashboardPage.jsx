@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FolderArchive, Plus, CheckCircle2, Clock, Award, Compass, Search } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
+import { useAuth } from '../context/AuthContext';
 import { CaseCard } from '../components/dashboard/CaseCard';
 import { DeleteCaseModal } from '../components/dashboard/DeleteCaseModal';
 import { Button } from '../components/ui/Button';
@@ -9,6 +10,7 @@ import { Button } from '../components/ui/Button';
 export function DashboardPage() {
   const navigate = useNavigate();
   const { cases, selectCase, deleteCase } = useInvestigation();
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
   const [caseToDelete, setCaseToDelete] = useState(null);
 
@@ -36,9 +38,17 @@ export function DashboardPage() {
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-3 border-ink pb-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-neoYellow border-2 border-ink rounded-lg font-mono text-xs font-bold uppercase mb-3 shadow-hard-xs">
-              <FolderArchive className="w-4 h-4 stroke-[2.5]" />
-              CENTRAL ARCHIVES
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-neoYellow border-2 border-ink rounded-lg font-mono text-xs font-bold uppercase shadow-hard-xs">
+                <FolderArchive className="w-4 h-4 stroke-[2.5]" />
+                CENTRAL ARCHIVES
+              </div>
+              {user?.name && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-paper-light border-2 border-ink rounded-lg font-mono text-xs font-bold text-ink shadow-hard-xs">
+                  <span>DETECTIVE:</span>
+                  <span className="text-neoPurple font-extrabold">{user.name.toUpperCase()}</span>
+                </div>
+              )}
             </div>
             <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-ink tracking-tight uppercase">
               CASE ARCHIVE & ACTIVE DOSSIERS

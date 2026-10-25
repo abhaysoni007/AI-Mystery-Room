@@ -28,10 +28,19 @@ export function LoginPage() {
     }
   }, [countdown]);
 
-  // If already authenticated, redirect to dashboard or intended target
+  const getDestination = () => {
+    if (location.state?.from) {
+      if (typeof location.state.from === 'string') return location.state.from;
+      if (location.state.from.pathname) {
+        return `${location.state.from.pathname}${location.state.from.search || ''}`;
+      }
+    }
+    return '/dashboard';
+  };
+
+  // If already authenticated, redirect to destination
   if (isAuthenticated) {
-    const destination = location.state?.from || '/dashboard';
-    return <Navigate to={destination} replace />;
+    return <Navigate to={getDestination()} replace />;
   }
 
   const handleLoginSubmit = async (e) => {
@@ -42,8 +51,7 @@ export function LoginPage() {
 
     try {
       await login({ email: email.trim(), password });
-      const destination = location.state?.from || '/dashboard';
-      navigate(destination);
+      navigate(getDestination(), { replace: true });
     } catch (err) {
       if (err.code === 'ACCOUNT_NOT_VERIFIED') {
         setIsOtpStep(true);
@@ -68,8 +76,7 @@ export function LoginPage() {
     setIsLoading(true);
     try {
       await verifyOtp({ email: email.trim(), otp: otp.trim(), purpose: 'signup' });
-      const destination = location.state?.from || '/dashboard';
-      navigate(destination);
+      navigate(getDestination(), { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid verification code. Please check and try again.');
     } finally {
@@ -108,17 +115,27 @@ export function LoginPage() {
           <div className="flex border-2 border-ink rounded-lg p-1 bg-paper mb-6">
             <Link
               to="/login"
+              state={location.state}
               className="flex-1 text-center py-2 font-display font-extrabold text-xs uppercase bg-neoYellow border-2 border-ink rounded shadow-hard-xs text-ink"
             >
               SIGN IN
             </Link>
             <Link
               to="/signup"
+              state={location.state}
               className="flex-1 text-center py-2 font-display font-extrabold text-xs uppercase text-ink/70 hover:text-ink transition-colors"
             >
               REGISTER
             </Link>
           </div>
+
+          {/* Clearance Required Notice (if redirected from a protected route) */}
+          {location.state?.from && !error && (
+            <div className="mb-5 p-3.5 bg-neoYellow/30 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+              <ShieldAlert className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
+              <span>CLEARANCE REQUIRED: You must be signed in to access that restricted area. Please authenticate below.</span>
+            </div>
+          )}
 
           {/* Feedback Banners */}
           {error && (
@@ -205,7 +222,7 @@ export function LoginPage() {
 
               <div className="pt-4 border-t-2 border-ink/30 text-center font-mono text-xs text-muted">
                 <span>New investigator? </span>
-                <Link to="/signup" className="font-bold text-ink underline hover:text-neoPurple">
+                <Link to="/signup" state={location.state} className="font-bold text-ink underline hover:text-neoPurple">
                   Register credentials
                 </Link>
               </div>

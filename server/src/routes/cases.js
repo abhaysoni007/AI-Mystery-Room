@@ -7,8 +7,10 @@ import { Accusation } from '../models/Accusation.js';
 import { generateMysteryCase } from '../services/geminiService.js';
 import { serializePublicCase, serializePublicCaseSummary } from '../serializers/caseSerializer.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import { optionalAuth } from '../middleware/authMiddleware.js';
 
 const casesRouter = Router();
+casesRouter.use(optionalAuth);
 
 const createCaseSchema = z.object({
   scenario: z
@@ -17,7 +19,17 @@ const createCaseSchema = z.object({
     .min(20, 'Scenario description must be at least 20 characters')
     .max(2000, 'Scenario description cannot exceed 2000 characters'),
   category: z
-    .enum(['theft', 'murder', 'disappearance', 'corporate_espionage', 'cybercrime', 'blackmail', 'other'])
+    .enum([
+      'theft',
+      'murder',
+      'disappearance',
+      'corporate_espionage',
+      'corporate',
+      'cybercrime',
+      'blackmail',
+      'general',
+      'other',
+    ])
     .optional()
     .default('theft'),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional().default('medium'),
@@ -27,7 +39,10 @@ const createCaseSchema = z.object({
 // GET /api/v1/cases - List cases
 casesRouter.get('/', async (req, res, next) => {
   try {
-    const filter = { ownerId: 'user_anonymous' };
+    const userId = req.user ? req.user._id.toString() : 'user_anonymous';
+    const filter = req.user
+      ? { $or: [{ ownerId: userId }, { ownerId: 'user_anonymous' }] }
+      : { ownerId: 'user_anonymous' };
     if (req.query.status) {
       filter.status = req.query.status;
     }
@@ -66,10 +81,12 @@ casesRouter.post('/', async (req, res, next) => {
       length,
     });
 
+    const userId = req.user ? req.user._id.toString() : 'user_anonymous';
+
     const newCasePayload = {
       ...generatedCase,
       prompt: scenario,
-      ownerId: 'user_anonymous',
+      ownerId: userId,
       status: 'active',
     };
 
@@ -78,7 +95,7 @@ casesRouter.post('/', async (req, res, next) => {
     // Initialize progress record for active investigation
     await InvestigationProgress.create({
       caseId: created._id.toString(),
-      userId: 'user_anonymous',
+      userId,
       openedEvidenceIds: [],
       notes: '',
       status: 'active',

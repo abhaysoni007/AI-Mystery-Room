@@ -27,10 +27,19 @@ export function ForgotPasswordPage() {
     }
   }, [countdown]);
 
-  // If already authenticated, redirect to dashboard or intended target
+  const getDestination = () => {
+    if (location.state?.from) {
+      if (typeof location.state.from === 'string') return location.state.from;
+      if (location.state.from.pathname) {
+        return `${location.state.from.pathname}${location.state.from.search || ''}`;
+      }
+    }
+    return '/dashboard';
+  };
+
+  // If already authenticated, redirect to destination
   if (isAuthenticated) {
-    const destination = location.state?.from || '/dashboard';
-    return <Navigate to={destination} replace />;
+    return <Navigate to={getDestination()} replace />;
   }
 
   const handleForgotPasswordSubmit = async (e) => {
@@ -67,8 +76,7 @@ export function ForgotPasswordPage() {
     setIsLoading(true);
     try {
       await resetPassword({ email: pendingEmail, otp: otp.trim(), newPassword });
-      const destination = location.state?.from || '/dashboard';
-      navigate(destination);
+      navigate(getDestination(), { replace: true });
     } catch (err) {
       setError(err.message || 'Password reset failed. Invalid or expired code.');
     } finally {

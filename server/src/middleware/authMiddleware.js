@@ -41,3 +41,25 @@ export async function requireAuth(req, res, next) {
     next(error);
   }
 }
+
+export async function optionalAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, env.JWT_SECRET);
+        const user = await User.findById(decoded.userId);
+        if (user) {
+          req.user = user;
+        }
+      } catch (jwtErr) {
+        // Silently treat as anonymous if token is invalid or expired
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+

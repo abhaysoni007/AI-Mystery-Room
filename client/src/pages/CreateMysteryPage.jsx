@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Sparkles, Compass, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
+import { useAuth } from '../context/AuthContext';
 
 const EXAMPLE_PROMPTS = [
   'A museum curator disappears on the night a rare painting is moved from the vault during a scheduled gala blackout.',
@@ -36,6 +37,7 @@ const LENGTHS = [
 export function CreateMysteryPage() {
   const navigate = useNavigate();
   const { createCase } = useInvestigation();
+  const { isAuthenticated } = useAuth();
 
   const [scenario, setScenario] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
@@ -53,6 +55,8 @@ export function CreateMysteryPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (isGenerating) return;
+
     if (!scenario.trim()) {
       setError('Please provide a scenario prompt.');
       return;
@@ -65,6 +69,11 @@ export function CreateMysteryPage() {
 
     if (scenario.length > 2000) {
       setError('Scenario cannot exceed 2,000 characters.');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/create' } });
       return;
     }
 
