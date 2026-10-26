@@ -105,18 +105,10 @@ export async function getResult(caseId) {
 }
 
 // Authentication endpoints
-export async function signup({ name, email, password }) {
+export async function signup({ username, password, name }) {
   const json = await request('/auth/signup', {
     method: 'POST',
-    body: { name, email, password },
-  });
-  return json.data;
-}
-
-export async function verifyOtp({ email, otp, purpose = 'signup' }) {
-  const json = await request('/auth/verify-otp', {
-    method: 'POST',
-    body: { email, otp, purpose },
+    body: { username, password, name },
   });
   if (json.data?.token) {
     setAuthToken(json.data.token);
@@ -124,29 +116,10 @@ export async function verifyOtp({ email, otp, purpose = 'signup' }) {
   return json.data;
 }
 
-export async function login({ email, password }) {
+export async function login({ username, password }) {
   const json = await request('/auth/login', {
     method: 'POST',
-    body: { email, password },
-  });
-  if (json.data?.token) {
-    setAuthToken(json.data.token);
-  }
-  return json.data;
-}
-
-export async function forgotPassword({ email }) {
-  const json = await request('/auth/forgot-password', {
-    method: 'POST',
-    body: { email },
-  });
-  return json.data;
-}
-
-export async function resetPassword({ email, otp, newPassword }) {
-  const json = await request('/auth/reset-password', {
-    method: 'POST',
-    body: { email, otp, newPassword },
+    body: { username, password },
   });
   if (json.data?.token) {
     setAuthToken(json.data.token);

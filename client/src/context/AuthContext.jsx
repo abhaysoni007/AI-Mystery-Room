@@ -45,8 +45,8 @@ export function AuthProvider({ children }) {
     };
   }, [token]);
 
-  const login = useCallback(async ({ email, password }) => {
-    const data = await api.login({ email, password });
+  const login = useCallback(async ({ username, password }) => {
+    const data = await api.login({ username, password });
     if (data?.token) {
       setToken(data.token);
       setUser(data.user);
@@ -55,13 +55,8 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  const signup = useCallback(async ({ name, email, password }) => {
-    const data = await api.signup({ name, email, password });
-    return data;
-  }, []);
-
-  const verifyOtp = useCallback(async ({ email, otp, purpose = 'signup' }) => {
-    const data = await api.verifyOtp({ email, otp, purpose });
+  const signup = useCallback(async ({ username, password, name }) => {
+    const data = await api.signup({ username, password, name });
     if (data?.token) {
       setToken(data.token);
       setUser(data.user);
@@ -69,21 +64,6 @@ export function AuthProvider({ children }) {
       if (data.user?.hasCompletedWalkthrough === false) {
         setIsWalkthroughOpen(true);
       }
-    }
-    return data;
-  }, []);
-
-  const forgotPassword = useCallback(async ({ email }) => {
-    const data = await api.forgotPassword({ email });
-    return data;
-  }, []);
-
-  const resetPassword = useCallback(async ({ email, otp, newPassword }) => {
-    const data = await api.resetPassword({ email, otp, newPassword });
-    if (data?.token) {
-      setToken(data.token);
-      setUser(data.user);
-      api.setAuthToken(data.token);
     }
     return data;
   }, []);
@@ -135,9 +115,6 @@ export function AuthProvider({ children }) {
         setAuthModalMode,
         login,
         signup,
-        verifyOtp,
-        forgotPassword,
-        resetPassword,
         logout,
         openWalkthrough,
         closeWalkthrough,
@@ -165,9 +142,6 @@ export function useAuth() {
       setAuthModalMode: () => {},
       login: async () => {},
       signup: async () => {},
-      verifyOtp: async () => {},
-      forgotPassword: async () => {},
-      resetPassword: async () => {},
       logout: () => {},
       openWalkthrough: () => {},
       closeWalkthrough: () => {},

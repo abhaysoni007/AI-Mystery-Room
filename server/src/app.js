@@ -6,13 +6,16 @@ import { env } from './config/env.js';
 import apiRouter from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
+import healthRouter from './routes/health.js';
+
 const app = express();
 
+const clientOrigin = env.CLIENT_URL ? env.CLIENT_URL.trim().replace(/\/+$/, '') : null;
 const allowedOrigins = Array.from(new Set([
-  env.CLIENT_URL,
+  clientOrigin,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-]));
+].filter(Boolean)));
 
 app.use(helmet());
 app.use(cors({
@@ -31,6 +34,7 @@ if (env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+app.use('/health', healthRouter);
 app.use('/api/v1', apiRouter);
 
 app.use(notFoundHandler);

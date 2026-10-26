@@ -11,7 +11,6 @@ import { CreateMysteryPage } from './pages/CreateMysteryPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { InvestigationLayout } from './layouts/InvestigationLayout';
 import { CaseOverviewView } from './pages/investigation/CaseOverviewView';
 import { SuspectsView } from './pages/investigation/SuspectsView';
@@ -24,7 +23,7 @@ import { ResultRevealPage } from './pages/ResultRevealPage';
 
 function MainLayout() {
   const location = useLocation();
-  const isAuthPage = ['/login', '/signup', '/forget', '/forgot', '/forgot-password'].includes(location.pathname);
+  const isAuthPage = ['/login', '/signup'].includes(location.pathname);
 
   return (
     <div className={`min-h-screen flex flex-col bg-paper text-ink font-sans selection:bg-neoYellow selection:text-ink ${isAuthPage ? 'h-screen overflow-hidden' : ''}`}>
@@ -56,9 +55,6 @@ export default function App() {
               {/* Authentication Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
-              <Route path="/forget" element={<ForgotPasswordPage />} />
-              <Route path="/forgot" element={<Navigate to="/forget" replace />} />
-              <Route path="/forgot-password" element={<Navigate to="/forget" replace />} />
             </Route>
 
             {/* Type-Specific Evidence Viewer Suite */}

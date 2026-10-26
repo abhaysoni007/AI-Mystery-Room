@@ -82,10 +82,7 @@ The following table reflects the actual state of the repository, validated again
 
 | Feature | Description | Status |
 |---|---|---|
-| **User Registration & Login** | Email + password authentication with bcrypt hashing (10 salt rounds) and 7-day signed JWT tokens. | `Implemented` |
-| **Email Verification & OTP Delivery** | 6-digit cryptographic OTP generation, bcrypt storage with 10-minute Mongo TTL indexes, and Nodemailer email dispatch. | `Implemented` |
-| **Terminal Dev-Simulator OTP** | Automatic console logging and API feedback of OTP codes when SMTP credentials are not configured, enabling zero-friction local development. | `Implemented` |
-| **Self-Service Password Reset** | Secure password reset flow using 6-digit OTP verification codes with email enumeration protection. | `Implemented` |
+| **User Registration & Login** | Detective ID (Username) + password authentication with bcrypt hashing (10 salt rounds) and 7-day signed JWT tokens. | `Implemented` |
 | **Interactive Walkthrough** | 4-step detective onboarding modal for first-time detectives, persisted across sessions via `hasCompletedWalkthrough` on the user record. | `Implemented` |
 | **AI Mystery Case Generation** | On-demand creation of original mysteries using Google Gemini (`gemini-1.5-flash`) via `@google/genai` structured JSON outputs. | `Implemented` |
 | **Deterministic Fallback Engine** | Offline, solver-guaranteed template generation fallback triggered if the Gemini API key is missing, network fails, or validation errors occur. | `Implemented` |
@@ -133,7 +130,7 @@ The stack has been verified directly against `package.json`, `server/package.jso
   ┌────────────────────────────────────┴────────────────────────────────────┐
   │                                SERVER                                   │
   │  Node.js (ESM)  •  Express 4.21.2  •  Mongoose 8.9.5  •  Zod 3.24.1     │
-  │  JWT (jsonwebtoken 9.0) •  BcryptJS 3.0 • Helmet 8.0 • Nodemailer 10.2 │
+  │  JWT (jsonwebtoken 9.0) •  BcryptJS 3.0 • Helmet 8.0                    │
   └──────────────────┬───────────────────────────────────┬──────────────────┘
                      │ Mongoose ODM                      │ Google GenAI SDK
   ┌──────────────────┴───────────────┐   ┌───────────────┴──────────────────┐
@@ -157,8 +154,7 @@ The stack has been verified directly against `package.json`, `server/package.jso
 - **Database & ODM:** [MongoDB](https://www.mongodb.com/) via [Mongoose 8.9.5](https://mongoosejs.com/) featuring schema validations, embedded subdocuments, and TTL indexes.
 - **AI Integration:** Google GenAI SDK [`@google/genai` 2.31.0](https://www.npmjs.com/package/@google/genai) with strict structured JSON schema generation.
 - **Schema Validation:** [Zod 3.24.1](https://zod.dev/) validating incoming request bodies and environment configurations.
-- **Security & Cryptography:** [bcryptjs 3.0.3](https://www.npmjs.com/package/bcryptjs) for password and OTP hashing; [jsonwebtoken 9.0.3](https://www.npmjs.com/package/jsonwebtoken) for stateless Bearer tokens; [helmet 8.0.0](https://helmetjs.github.io/) for HTTP security headers; [cors 2.8.5](https://www.npmjs.com/package/cors) for origin control.
-- **Email Dispatch:** [Nodemailer 10.2.1](https://nodemailer.com/) with SMTP transport and automatic fallback to terminal logging during development.
+- **Security & Cryptography:** [bcryptjs 3.0.3](https://www.npmjs.com/package/bcryptjs) for password hashing; [jsonwebtoken 9.0.3](https://www.npmjs.com/package/jsonwebtoken) for stateless Bearer tokens; [helmet 8.0.0](https://helmetjs.github.io/) for HTTP security headers; [cors 2.8.5](https://www.npmjs.com/package/cors) for origin control.
 - **Testing:** [Vitest 3.0.4](https://vitest.dev/), [supertest 7.0.0](https://www.npmjs.com/package/supertest), and [mongodb-memory-server 10.1.3](https://www.npmjs.com/package/mongodb-memory-server).
 
 ---
@@ -243,8 +239,7 @@ flowchart TD
    - Evaluates accusations deterministically without relying on third-party AI at runtime.
 
 3. **Data Persistence (`server/src/models/`):**
-   - **`User`**: Account credentials, email verification status, and walkthrough flags.
-   - **`OtpVerification`**: 6-digit hashes with a 10-minute TTL index (`expiresAt`) and attempt counters.
+   - **`User`**: Account credentials, unique Detective ID / Username, and walkthrough flags.
    - **`Case`**: Full case dossiers including embedded suspects, timeline events, evidence items, and sealed `solution` schemas.
    - **`InvestigationProgress`**: Tracks opened evidence IDs, user notes, and lifecycle timestamps for each user-case pair.
    - **`Accusation`**: Records final indictments, selected suspect IDs, reasoning, timestamps, and calculated score.
@@ -347,22 +342,20 @@ AI Mystery Room/
     │   │   ├── authMiddleware.js  # JWT validation (`requireAuth`, `optionalAuth`)
     │   │   └── errorHandler.js    # 404 handler and central JSON error serializer
     │   ├── models/                # Mongoose data models
-    │   │   ├── User.js            # User credentials, verification flag, walkthrough state
-    │   │   ├── OtpVerification.js # Hashed OTPs with TTL index and attempt counters
+    │   │   ├── User.js            # User credentials, username ID, and walkthrough state
     │   │   ├── Case.js            # Mystery cases with embedded suspects, evidence, and solution
     │   │   ├── InvestigationProgress.js # Per-user case activity and notes tracking
     │   │   └── Accusation.js      # Submitted indictments, reasoning, and evaluated scores
     │   ├── routes/                # Express REST route handlers
     │   │   ├── index.js           # Router aggregator mounting `/cases`, `/auth`, and `/health`
     │   │   ├── health.js          # Health check endpoint returning status and uptime
-    │   │   ├── auth.js            # Signup, OTP verification, login, password reset, walkthrough
+    │   │   ├── auth.js            # Direct signup, login, profile, and walkthrough endpoints
     │   │   └── cases.js           # Case CRUD, progress tracking, accusations, and solution reveal
     │   ├── serializers/
     │   │   └── caseSerializer.js  # Public DTO sanitizers stripping canonical solution fields
     │   ├── services/
     │   │   ├── geminiService.js   # Google GenAI integration with deterministic template fallback
-    │   │   ├── caseValidator.js   # Referential integrity validator for generated mysteries
-    │   │   └── emailService.js    # Nodemailer OTP dispatcher with console simulator fallback
+    │   │   └── caseValidator.js   # Referential integrity validator for generated mysteries
     │   └── utils/
     │       ├── response.js        # Standardized API response helpers (`sendSuccess`, `sendError`)
     │       └── token.js           # JWT signature and token verification utilities
@@ -481,12 +474,6 @@ All backend environment variables are parsed and validated at startup using Zod 
 | `JWT_SECRET` | Server | **Required in Prod** | Secret key used to sign and verify JSON Web Tokens. | `super_secret_jwt_key_change_in_production` |
 | `GEMINI_API_KEY` | Server | Optional | Google Gemini API key used for structured case generation. If unset, fallback engine runs. | `AIzaSyD-placeholder-key` |
 | `GEMINI_MODEL` | Server | Optional | Model identifier passed to `@google/genai`. | `gemini-1.5-flash` |
-| `SMTP_HOST` | Server | Optional | SMTP mail host for dispatching verification codes. | `smtp.gmail.com` or `smtp-relay.brevo.com` |
-| `SMTP_PORT` | Server | Optional | SMTP connection port (usually `587` for TLS or `465` for SSL). | `587` |
-| `SMTP_USER` | Server | Optional | Username or email for authenticating with the SMTP server. | `investigator@agency.com` |
-| `SMTP_PASS` | Server | Optional | Password or application-specific password for SMTP. | `your_smtp_app_password` |
-| `EMAIL_FROM` | Server | Optional | Sender header formatted as `Display Name <email@domain>`. | `AI Mystery Room <no-reply@mysteryroom.io>` |
-| `BREVO_API_KEY` | Server | Optional (Legacy) | Mentioned in `.env.example` template; code currently uses Nodemailer SMTP transport. | `xkeysib-placeholder` |
 | `VITE_API_URL` | Client | Optional | Base URL for API requests. Defaults to `/api/v1` (via Vite proxy) or `http://localhost:5000/api/v1`. | `http://localhost:5000/api/v1` |
 
 > [!CAUTION]
@@ -499,7 +486,7 @@ All backend environment variables are parsed and validated at startup using Zod 
 The implemented end-to-end user journey follows a deliberate, 8-stage investigative flow:
 
 ```
-[1. Landing Page] ──► [2. Signup / OTP] ──► [3. Detective Walkthrough]
+[1. Landing Page] ──► [2. Signup / Login] ──► [3. Detective Walkthrough]
                                                        │
                                                        ▼
 [6. Indictment]   ◄── [5. Evidence Inspection] ◄── [4. Create / Select Case]
@@ -679,8 +666,8 @@ npm run build
 ### Key Test Coverage Highlights
 - **Server Tests (`server/tests/`):**
   - `health.test.js`: Validates `/health` uptime, status, and database connectivity.
-  - `userModel.test.js`: Validates User model, bcrypt password hashing, OtpVerification TTL expiry, and email simulator dispatch.
-  - `authApi.test.js`: Tests signup, OTP verification, JWT generation, login checks, and password reset flows via Supertest.
+  - `userModel.test.js`: Validates User model schema, unique Detective ID / Username enforcement, and walkthrough state.
+  - `authApi.test.js`: Tests direct ID & password signup, duplicate username rejection, JWT token issuance, and login checks via Supertest.
   - `caseModel.test.js`: Tests Mongoose persistence and verifies that `caseSerializer.js` strips solutions.
   - `geminiService.test.js`: Validates structured JSON schema generation and verifies automatic fallback activation.
   - `casesApi.test.js`: Verifies case creation, input validation, dossier retrieval, and progress patching.

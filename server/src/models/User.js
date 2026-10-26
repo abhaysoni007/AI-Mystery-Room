@@ -9,22 +9,19 @@ const userSchema = new mongoose.Schema(
       minlength: 2,
       maxlength: 64,
     },
-    email: {
+    username: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
+      minlength: 3,
+      maxlength: 32,
       index: true,
     },
     passwordHash: {
       type: String,
       required: true,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-      index: true,
     },
     hasCompletedWalkthrough: {
       type: Boolean,

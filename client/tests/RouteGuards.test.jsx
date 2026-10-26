@@ -79,7 +79,7 @@ describe('Route Guards & Authentication Enforcers', () => {
       expect(screen.getByRole('heading', { name: /DETECTIVE SIGN IN/i })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText(/Email Address/i), { target: { value: 'sherlock@bakerst.com' } });
+    fireEvent.change(screen.getByLabelText(/Detective ID/i), { target: { value: 'sherlock_221b' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'BakerStPass123' } });
     fireEvent.click(screen.getByRole('button', { name: /ACCESS DOSSIER/i }));
 

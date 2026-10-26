@@ -54,7 +54,7 @@ export function Navbar() {
             {isAuthenticated ? (
               <div className="flex items-center gap-2 pl-2 border-l-2 border-ink/40">
                 <div
-                  title={user?.email}
+                  title={user?.username ? `@${user.username}` : user?.name}
                   className="w-8 h-8 rounded-lg bg-neoPink border-2 border-ink flex items-center justify-center font-display font-extrabold text-xs shadow-hard-xs text-ink"
                 >
                   {user?.name ? user.name[0].toUpperCase() : 'U'}

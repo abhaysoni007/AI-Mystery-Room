@@ -20,117 +20,82 @@ describe('AuthModal Component', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders login tab by default with email and password fields', () => {
+  it('renders login tab by default with username and password fields', () => {
     render(
       <AuthProvider>
         <ModalTestWrapper initialMode="login" />
       </AuthProvider>
     );
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /DETECTIVE SIGN IN/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
+    expect(screen.getByText(/IDENTITY VERIFICATION/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Detective ID \/ Username/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /ACCESS DOSSIER/i })).toBeInTheDocument();
   });
 
-  it('switches to create account tab and shows name field', () => {
+  it('switches to register tab and shows name and username fields', () => {
     render(
       <AuthProvider>
         <ModalTestWrapper initialMode="login" />
       </AuthProvider>
     );
 
-    const signupTab = screen.getByRole('button', { name: /REGISTER/i });
+    const signupTab = screen.getByRole('button', { name: /^REGISTER$/i });
     fireEvent.click(signupTab);
 
-    expect(screen.getByRole('heading', { name: /CREATE INVESTIGATOR ACCOUNT/i })).toBeInTheDocument();
+    expect(screen.getByText(/NEW RECRUIT ENROLLMENT/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Detective Name/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /SEND VERIFICATION OTP/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Detective ID \/ Username/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /REGISTER & ENTER BUREAU/i })).toBeInTheDocument();
   });
 
-  it('submitting signup advances to OTP verification screen', async () => {
-    vi.spyOn(api, 'signup').mockResolvedValue({
-      email: 'investigator@bakerst.com',
-      name: 'Holmes',
+  it('submits login form and closes modal on success', async () => {
+    vi.spyOn(api, 'login').mockResolvedValue({
+      token: 'jwt_token_123',
+      user: { id: 'u_1', name: 'Holmes', username: 'holmes_221b' },
     });
 
     render(
       <AuthProvider>
-        <ModalTestWrapper initialMode="signup" />
+        <ModalTestWrapper initialMode="login" />
       </AuthProvider>
     );
 
-    fireEvent.change(screen.getByLabelText(/Detective Name/i), { target: { value: 'Holmes' } });
-    fireEvent.change(screen.getByLabelText(/Email Address/i), { target: { value: 'investigator@bakerst.com' } });
+    fireEvent.change(screen.getByLabelText(/Detective ID \/ Username/i), { target: { value: 'holmes_221b' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'SecretPass123' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /SEND VERIFICATION OTP/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText(/ENTER 6-DIGIT VERIFICATION CODE/i)).toBeInTheDocument();
-    });
-
-    expect(screen.getAllByText(/investigator@bakerst.com/i)[0]).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /CONFIRM & ACTIVATE ACCOUNT/i })).toBeInTheDocument();
-  });
-
-  it('submits 6-digit OTP code to verify and activate account', async () => {
-    vi.spyOn(api, 'verifyOtp').mockResolvedValue({
-      token: 'valid_jwt_token',
-      user: { id: 'u_1', name: 'Holmes', email: 'investigator@bakerst.com', hasCompletedWalkthrough: false },
-    });
-
-    render(
-      <AuthProvider>
-        <ModalTestWrapper initialMode="signup" />
-      </AuthProvider>
-    );
-
-    // Simulate arriving at OTP screen
-    vi.spyOn(api, 'signup').mockResolvedValue({ email: 'investigator@bakerst.com' });
-    fireEvent.change(screen.getByLabelText(/Detective Name/i), { target: { value: 'Holmes' } });
-    fireEvent.change(screen.getByLabelText(/Email Address/i), { target: { value: 'investigator@bakerst.com' } });
-    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'SecretPass123' } });
-    fireEvent.click(screen.getByRole('button', { name: /SEND VERIFICATION OTP/i }));
+    fireEvent.click(screen.getByRole('button', { name: /ACCESS DOSSIER/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Verification Code/i)).toBeInTheDocument();
-    });
-
-    const otpInput = screen.getByLabelText(/Verification Code/i);
-    fireEvent.change(otpInput, { target: { value: '884920' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /CONFIRM & ACTIVATE ACCOUNT/i }));
-
-    await waitFor(() => {
-      expect(api.verifyOtp).toHaveBeenCalledWith({
-        email: 'investigator@bakerst.com',
-        otp: '884920',
-        purpose: 'signup',
+      expect(api.login).toHaveBeenCalledWith({
+        username: 'holmes_221b',
+        password: 'SecretPass123',
       });
     });
   });
 
-  it('switches to forgot password screen and requests reset code', async () => {
-    vi.spyOn(api, 'forgotPassword').mockResolvedValue({ email: 'investigator@bakerst.com' });
+  it('submits registration form and closes modal on success', async () => {
+    vi.spyOn(api, 'signup').mockResolvedValue({
+      token: 'jwt_token_456',
+      user: { id: 'u_2', name: 'Watson', username: 'watson_doc' },
+    });
 
     render(
       <AuthProvider>
-        <ModalTestWrapper initialMode="login" />
+        <ModalTestWrapper initialMode="signup" />
       </AuthProvider>
     );
 
-    const forgotLink = screen.getByText(/Forgot password\?/i);
-    fireEvent.click(forgotLink);
-
-    expect(screen.getByRole('heading', { name: /RESET INVESTIGATOR PASSWORD/i })).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText(/Registered Email/i), { target: { value: 'investigator@bakerst.com' } });
-    fireEvent.click(screen.getByRole('button', { name: /SEND RESET CODE/i }));
+    fireEvent.change(screen.getByLabelText(/Detective Name/i), { target: { value: 'Watson' } });
+    fireEvent.change(screen.getByLabelText(/Detective ID \/ Username/i), { target: { value: 'watson_doc' } });
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'DoctorSecret123' } });
+    fireEvent.click(screen.getByRole('button', { name: /REGISTER & ENTER BUREAU/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/ENTER RESET CODE & NEW PASSWORD/i)).toBeInTheDocument();
+      expect(api.signup).toHaveBeenCalledWith({
+        name: 'Watson',
+        username: 'watson_doc',
+        password: 'DoctorSecret123',
+      });
     });
   });
 });

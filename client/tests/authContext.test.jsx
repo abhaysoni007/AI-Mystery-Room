@@ -10,7 +10,6 @@ function TestConsumer() {
     isAuthenticated,
     login,
     signup,
-    verifyOtp,
     logout,
     isWalkthroughOpen,
     openWalkthrough,
@@ -23,9 +22,8 @@ function TestConsumer() {
       <div data-testid="auth-status">{isAuthenticated ? 'LOGGED_IN' : 'LOGGED_OUT'}</div>
       <div data-testid="user-name">{user ? user.name : 'NO_USER'}</div>
       <div data-testid="tour-status">{isWalkthroughOpen ? 'TOUR_OPEN' : 'TOUR_CLOSED'}</div>
-      <button onClick={() => login({ email: 'test@agency.com', password: 'Pass123' })}>Login</button>
-      <button onClick={() => signup({ name: 'Holmes', email: 'holmes@agency.com', password: 'Pass123' })}>Signup</button>
-      <button onClick={() => verifyOtp({ email: 'holmes@agency.com', otp: '123456', purpose: 'signup' })}>Verify</button>
+      <button onClick={() => login({ username: 'sherlock_221b', password: 'Pass123' })}>Login</button>
+      <button onClick={() => signup({ name: 'Holmes', username: 'holmes_detective', password: 'Pass123' })}>Signup</button>
       <button onClick={logout}>Logout</button>
       <button onClick={openWalkthrough}>OpenTour</button>
       <button onClick={closeWalkthrough}>CloseTour</button>
@@ -55,7 +53,7 @@ describe('AuthContext', () => {
   it('logs in successfully and updates user state', async () => {
     vi.spyOn(api, 'login').mockResolvedValue({
       token: 'mock_jwt_token',
-      user: { id: 'u_1', name: 'Sherlock Holmes', email: 'test@agency.com', hasCompletedWalkthrough: true },
+      user: { id: 'u_1', name: 'Sherlock Holmes', username: 'sherlock_221b', hasCompletedWalkthrough: true },
     });
 
     render(
@@ -73,10 +71,10 @@ describe('AuthContext', () => {
     expect(localStorage.getItem('ai_mystery_token')).toBe('mock_jwt_token');
   });
 
-  it('triggers walkthrough for newly verified users where hasCompletedWalkthrough is false', async () => {
-    vi.spyOn(api, 'verifyOtp').mockResolvedValue({
+  it('triggers walkthrough for newly signed up users where hasCompletedWalkthrough is false', async () => {
+    vi.spyOn(api, 'signup').mockResolvedValue({
       token: 'mock_jwt_token',
-      user: { id: 'u_2', name: 'New Detective', email: 'holmes@agency.com', hasCompletedWalkthrough: false },
+      user: { id: 'u_2', name: 'Holmes', username: 'holmes_detective', hasCompletedWalkthrough: false },
     });
 
     render(
@@ -86,7 +84,7 @@ describe('AuthContext', () => {
     );
 
     await act(async () => {
-      screen.getByText('Verify').click();
+      screen.getByText('Signup').click();
     });
 
     expect(screen.getByTestId('auth-status').textContent).toBe('LOGGED_IN');
