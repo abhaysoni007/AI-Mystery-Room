@@ -19,6 +19,7 @@ export function SignupPage() {
   // OTP Verification state
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [otp, setOtp] = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
   const [countdown, setCountdown] = useState(0);
 
@@ -52,11 +53,14 @@ export function SignupPage() {
     setIsLoading(true);
 
     try {
-      await signup({ name: name.trim(), email: email.trim(), password });
+      const res = await signup({ name: name.trim(), email: email.trim(), password });
       setPendingEmail(email.trim());
       setIsOtpStep(true);
       setCountdown(60);
-      setSuccessMessage(`Verification code sent to ${email.trim()}`);
+      if (res?.data?.devOtp) {
+        setDevOtp(res.data.devOtp);
+      }
+      setSuccessMessage(res?.message || `Verification code sent to ${email.trim()}`);
     } catch (err) {
       setError(err.message || 'Registration failed. Please check your details and try again.');
     } finally {
@@ -87,9 +91,12 @@ export function SignupPage() {
     if (countdown > 0) return;
     setError('');
     try {
-      await signup({ name: name.trim() || 'Detective', email: pendingEmail, password: password || 'TempPass123' });
+      const res = await signup({ name: name.trim() || 'Detective', email: pendingEmail, password: password || 'TempPass123' });
       setCountdown(60);
-      setSuccessMessage('A fresh verification code has been dispatched.');
+      if (res?.data?.devOtp) {
+        setDevOtp(res.data.devOtp);
+      }
+      setSuccessMessage(res?.message || 'A fresh verification code has been dispatched.');
     } catch (err) {
       setError(err.message || 'Failed to resend code.');
     }
@@ -263,6 +270,19 @@ export function SignupPage() {
                   Enter the single-use code dispatched to <strong className="text-ink">{pendingEmail}</strong>.
                 </p>
               </div>
+
+              {devOtp && (
+                <div className="p-2 bg-neoYellow/40 border-2 border-ink rounded-lg text-xs font-mono font-bold text-ink flex items-center justify-between">
+                  <span>DEV SIMULATOR CODE: <strong className="underline text-sm">{devOtp}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => setOtp(devOtp)}
+                    className="bg-ink text-white text-[10px] px-2 py-0.5 rounded font-bold hover:bg-ink/80 transition-colors"
+                  >
+                    AUTO-FILL
+                  </button>
+                </div>
+              )}
 
               <form onSubmit={handleOtpSubmit} className="space-y-3">
                 <div>

@@ -114,9 +114,14 @@ authRouter.post('/signup', async (req, res, next) => {
 
     await sendOtpEmail({ email, otp: rawOtp, purpose: 'signup' });
 
+    const hasSmtp = Boolean(env.SMTP_HOST && env.SMTP_USER);
+    const devOtp = (!hasSmtp && env.NODE_ENV !== 'production') ? rawOtp : undefined;
+
     return sendSuccess(res, {
-      data: { email, name },
-      message: 'Verification code sent to your email address',
+      data: { email, name, ...(devOtp ? { devOtp } : {}) },
+      message: hasSmtp
+        ? 'Verification code sent to your email address'
+        : `[Dev Mode] Verification code: ${rawOtp} (also logged in server terminal)`,
       statusCode: 200,
     });
   } catch (error) {
@@ -243,9 +248,12 @@ authRouter.post('/login', async (req, res, next) => {
       });
       await sendOtpEmail({ email, otp: rawOtp, purpose: 'signup' });
 
+      const hasSmtp = Boolean(env.SMTP_HOST && env.SMTP_USER);
+      const devNotice = !hasSmtp && env.NODE_ENV !== 'production' ? ` [Dev Simulator Code: ${rawOtp}]` : '';
+
       return sendError(res, {
         code: 'ACCOUNT_NOT_VERIFIED',
-        message: 'Your account is not yet verified. A fresh OTP code has been sent to your email.',
+        message: `Your account is not yet verified. A fresh OTP code has been dispatched.${devNotice}`,
         statusCode: 403,
       });
     }
@@ -291,6 +299,16 @@ authRouter.post('/forgot-password', async (req, res, next) => {
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       });
       await sendOtpEmail({ email, otp: rawOtp, purpose: 'reset_password' });
+
+      const hasSmtp = Boolean(env.SMTP_HOST && env.SMTP_USER);
+      const devOtp = (!hasSmtp && env.NODE_ENV !== 'production') ? rawOtp : undefined;
+
+      return sendSuccess(res, {
+        data: { email, ...(devOtp ? { devOtp } : {}) },
+        message: hasSmtp
+          ? 'If an account exists with this email, a reset code has been sent.'
+          : `[Dev Mode] Reset code: ${rawOtp} (also logged in server terminal)`,
+      });
     }
 
     return sendSuccess(res, {

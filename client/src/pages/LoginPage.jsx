@@ -18,6 +18,7 @@ export function LoginPage() {
   // OTP Fallback state if account is not yet verified
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [otp, setOtp] = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [countdown, setCountdown] = useState(0);
 
   // Countdown timer for resend OTP
@@ -56,6 +57,8 @@ export function LoginPage() {
       if (err.code === 'ACCOUNT_NOT_VERIFIED') {
         setIsOtpStep(true);
         setCountdown(60);
+        const match = err.message?.match(/Dev Simulator Code:\s*(\d{6})/i);
+        if (match) setDevOtp(match[1]);
         setError('Your account is not verified yet. A fresh OTP code was sent to your email.');
       } else {
         setError(err.message || 'Login failed. Please check your credentials.');
@@ -88,8 +91,9 @@ export function LoginPage() {
     if (countdown > 0) return;
     setError('');
     try {
-      await signup({ name: 'Detective', email: email.trim(), password: password || 'TempPass123' });
+      const res = await signup({ name: 'Detective', email: email.trim(), password: password || 'TempPass123' });
       setCountdown(60);
+      if (res?.data?.devOtp) setDevOtp(res.data.devOtp);
       setSuccessMessage('A fresh verification code has been dispatched.');
     } catch (err) {
       setError(err.message || 'Failed to resend code.');
@@ -250,6 +254,19 @@ export function LoginPage() {
                   Enter the 6-digit access code dispatched to <strong className="text-ink">{email}</strong>.
                 </p>
               </div>
+
+              {devOtp && (
+                <div className="p-2 bg-neoYellow/40 border-2 border-ink rounded-lg text-xs font-mono font-bold text-ink flex items-center justify-between">
+                  <span>DEV SIMULATOR CODE: <strong className="underline text-sm">{devOtp}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => setOtp(devOtp)}
+                    className="bg-ink text-white text-[10px] px-2 py-0.5 rounded font-bold hover:bg-ink/80 transition-colors"
+                  >
+                    AUTO-FILL
+                  </button>
+                </div>
+              )}
 
               <form onSubmit={handleOtpSubmit} className="space-y-3">
                 <div>
