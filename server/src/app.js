@@ -13,6 +13,7 @@ const app = express();
 const clientOrigin = env.CLIENT_URL ? env.CLIENT_URL.trim().replace(/\/+$/, '') : null;
 const allowedOrigins = Array.from(new Set([
   clientOrigin,
+  'https://mysterio.abhaysoni.app',
   'https://mysterio.abhay.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
