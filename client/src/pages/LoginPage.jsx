@@ -97,33 +97,33 @@ export function LoginPage() {
   };
 
   return (
-    <div className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex items-center justify-center">
+    <div className="w-full h-full flex items-center justify-center p-3 sm:p-4 my-auto">
       <div className="w-full max-w-md">
         {/* Dossier Card Container */}
-        <div className="bg-paper-light border-3 border-ink rounded-2xl p-6 sm:p-8 shadow-hard-lg relative">
+        <div className="bg-paper-light border-3 border-ink rounded-2xl p-5 sm:p-6 shadow-hard-lg relative">
           {/* Top Classification Stamp */}
-          <div className="flex items-center justify-between border-b-2 border-ink pb-3 mb-6">
-            <span className="font-mono text-xs font-bold bg-neoYellow border border-ink px-2 py-0.5 rounded shadow-hard-xs uppercase">
+          <div className="flex items-center justify-between border-b-2 border-ink pb-2 mb-3">
+            <span className="font-mono text-[11px] font-bold bg-neoYellow border border-ink px-2 py-0.5 rounded shadow-hard-xs uppercase">
               BUREAU OF INVESTIGATION
             </span>
-            <span className="font-mono text-xs font-bold text-muted uppercase">
+            <span className="font-mono text-[11px] font-bold text-muted uppercase">
               PERSONNEL DOSSIER
             </span>
           </div>
 
           {/* Navigation Tabs between Login and Signup */}
-          <div className="flex border-2 border-ink rounded-lg p-1 bg-paper mb-6">
+          <div className="flex border-2 border-ink rounded-lg p-1 bg-paper mb-3">
             <Link
               to="/login"
               state={location.state}
-              className="flex-1 text-center py-2 font-display font-extrabold text-xs uppercase bg-neoYellow border-2 border-ink rounded shadow-hard-xs text-ink"
+              className="flex-1 text-center py-1.5 font-display font-extrabold text-xs uppercase bg-neoYellow border-2 border-ink rounded shadow-hard-xs text-ink"
             >
               SIGN IN
             </Link>
             <Link
               to="/signup"
               state={location.state}
-              className="flex-1 text-center py-2 font-display font-extrabold text-xs uppercase text-ink/70 hover:text-ink transition-colors"
+              className="flex-1 text-center py-1.5 font-display font-extrabold text-xs uppercase text-ink/70 hover:text-ink transition-colors"
             >
               REGISTER
             </Link>
@@ -131,22 +131,22 @@ export function LoginPage() {
 
           {/* Clearance Required Notice (if redirected from a protected route) */}
           {location.state?.from && !error && (
-            <div className="mb-5 p-3.5 bg-neoYellow/30 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+            <div className="mb-2.5 p-2 bg-neoYellow/30 border-2 border-ink rounded-lg flex items-center gap-2 text-xs font-mono font-bold text-ink">
               <ShieldAlert className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
-              <span>CLEARANCE REQUIRED: You must be signed in to access that restricted area. Please authenticate below.</span>
+              <span>CLEARANCE REQUIRED: You must be signed in to access that restricted area.</span>
             </div>
           )}
 
           {/* Feedback Banners */}
           {error && (
-            <div className="mb-5 p-3.5 bg-neoPink/20 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+            <div className="mb-3 p-2.5 bg-neoPink/20 border-2 border-ink rounded-lg flex items-center gap-2 text-xs font-mono font-bold text-ink">
               <ShieldAlert className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
               <span>{error}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="mb-5 p-3.5 bg-neoGreen/20 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+            <div className="mb-3 p-2.5 bg-neoGreen/20 border-2 border-ink rounded-lg flex items-center gap-2 text-xs font-mono font-bold text-ink">
               <CheckCircle2 className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
               <span>{successMessage}</span>
             </div>
@@ -154,23 +154,23 @@ export function LoginPage() {
 
           {/* Normal Login Form */}
           {!isOtpStep ? (
-            <div className="space-y-6">
+            <div className="space-y-3.5">
               <div>
-                <h1 className="font-display font-extrabold text-2xl sm:text-3xl uppercase tracking-tight text-ink">
+                <h1 className="font-display font-extrabold text-2xl uppercase tracking-tight text-ink">
                   DETECTIVE SIGN IN
                 </h1>
-                <p className="font-sans text-xs text-muted mt-1.5 leading-relaxed">
+                <p className="font-sans text-xs text-muted mt-0.5 leading-snug">
                   Enter your credentials to access active crime scenes, evidence lockers, and archived cases.
                 </p>
               </div>
 
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <form onSubmit={handleLoginSubmit} className="space-y-3">
                 <div>
-                  <label htmlFor="login-email" className="block font-mono text-xs font-bold uppercase text-ink mb-1.5">
+                  <label htmlFor="login-email" className="block font-mono text-[11px] font-bold uppercase text-ink mb-1">
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-muted absolute left-3.5 top-3.5 stroke-[2.5]" />
+                    <Mail className="w-4 h-4 text-muted absolute left-3 top-2.5 stroke-[2.5]" />
                     <input
                       id="login-email"
                       type="email"
@@ -178,25 +178,25 @@ export function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="detective@agency.com"
-                      className="w-full pl-10 pr-3 py-2.5 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
+                      className="w-full pl-9 pr-3 py-2 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label htmlFor="login-password" className="font-mono text-xs font-bold uppercase text-ink">
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="login-password" className="font-mono text-[11px] font-bold uppercase text-ink">
                       Password
                     </label>
                     <Link
                       to="/forget"
-                      className="font-mono text-xs font-bold text-ink hover:text-neoPurple underline decoration-ink/60"
+                      className="font-mono text-[11px] font-bold text-ink hover:text-neoPurple underline decoration-ink/60"
                     >
                       Forgot password?
                     </Link>
                   </div>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-muted absolute left-3.5 top-3.5 stroke-[2.5]" />
+                    <Lock className="w-4 h-4 text-muted absolute left-3 top-2.5 stroke-[2.5]" />
                     <input
                       id="login-password"
                       type="password"
@@ -204,7 +204,7 @@ export function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-3 py-2.5 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
+                      className="w-full pl-9 pr-3 py-2 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
                     />
                   </div>
                 </div>
@@ -213,14 +213,14 @@ export function LoginPage() {
                   type="submit"
                   variant="primary"
                   disabled={isLoading}
-                  className="w-full py-3 text-sm font-extrabold justify-center mt-2"
+                  className="w-full py-2.5 text-sm font-extrabold justify-center mt-1"
                 >
                   <LogIn className="w-4 h-4 mr-2 stroke-[2.5]" />
                   {isLoading ? 'AUTHENTICATING...' : 'ACCESS DOSSIER'}
                 </Button>
               </form>
 
-              <div className="pt-4 border-t-2 border-ink/30 text-center font-mono text-xs text-muted">
+              <div className="pt-2.5 border-t-2 border-ink/30 text-center font-mono text-xs text-muted">
                 <span>New investigator? </span>
                 <Link to="/signup" state={location.state} className="font-bold text-ink underline hover:text-neoPurple">
                   Register credentials
@@ -229,7 +229,7 @@ export function LoginPage() {
             </div>
           ) : (
             /* OTP Verification Sub-Flow for Unverified Accounts */
-            <div className="space-y-6">
+            <div className="space-y-3.5">
               <button
                 type="button"
                 onClick={() => setIsOtpStep(false)}
@@ -240,20 +240,20 @@ export function LoginPage() {
               </button>
 
               <div>
-                <div className="w-12 h-12 bg-neoYellow border-2 border-ink rounded-xl flex items-center justify-center mb-3 shadow-hard-sm">
-                  <KeyRound className="w-6 h-6 text-ink stroke-[2.5]" />
+                <div className="w-10 h-10 bg-neoYellow border-2 border-ink rounded-lg flex items-center justify-center mb-2 shadow-hard-xs">
+                  <KeyRound className="w-5 h-5 text-ink stroke-[2.5]" />
                 </div>
-                <h2 className="font-display font-extrabold text-2xl uppercase tracking-tight text-ink">
+                <h2 className="font-display font-extrabold text-xl uppercase tracking-tight text-ink">
                   ACTIVATE YOUR BADGE
                 </h2>
-                <p className="font-sans text-xs text-muted mt-1 leading-relaxed">
+                <p className="font-sans text-xs text-muted mt-0.5 leading-snug">
                   Enter the 6-digit access code dispatched to <strong className="text-ink">{email}</strong>.
                 </p>
               </div>
 
-              <form onSubmit={handleOtpSubmit} className="space-y-4">
+              <form onSubmit={handleOtpSubmit} className="space-y-3">
                 <div>
-                  <label htmlFor="otp-input" className="block font-mono text-xs font-bold uppercase text-ink mb-1.5">
+                  <label htmlFor="otp-input" className="block font-mono text-[11px] font-bold uppercase text-ink mb-1">
                     Verification Code
                   </label>
                   <input
@@ -264,7 +264,7 @@ export function LoginPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
-                    className="w-full text-center font-mono text-3xl font-extrabold tracking-[8px] py-3 bg-white border-3 border-ink rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
+                    className="w-full text-center font-mono text-2xl font-extrabold tracking-[6px] py-2 bg-white border-2 border-ink rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
                   />
                 </div>
 
@@ -272,12 +272,12 @@ export function LoginPage() {
                   type="submit"
                   variant="primary"
                   disabled={isLoading || otp.length !== 6}
-                  className="w-full py-3 text-sm font-extrabold justify-center"
+                  className="w-full py-2.5 text-sm font-extrabold justify-center"
                 >
                   {isLoading ? 'VERIFYING...' : 'CONFIRM & ACTIVATE ACCOUNT'}
                 </Button>
 
-                <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center justify-between pt-1">
                   <span className="font-mono text-xs text-muted">
                     {countdown > 0 ? `Resend in ${countdown}s` : 'Did not receive code?'}
                   </span>

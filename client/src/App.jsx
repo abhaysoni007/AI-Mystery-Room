@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { InvestigationProvider } from './context/InvestigationContext';
 import { Navbar } from './components/layout/Navbar';
@@ -23,13 +23,16 @@ import { AccusationPage } from './pages/AccusationPage';
 import { ResultRevealPage } from './pages/ResultRevealPage';
 
 function MainLayout() {
+  const location = useLocation();
+  const isAuthPage = ['/login', '/signup', '/forget', '/forgot', '/forgot-password'].includes(location.pathname);
+
   return (
-    <div className="min-h-screen flex flex-col bg-paper text-ink font-sans selection:bg-neoYellow selection:text-ink">
+    <div className={`min-h-screen flex flex-col bg-paper text-ink font-sans selection:bg-neoYellow selection:text-ink ${isAuthPage ? 'h-screen overflow-hidden' : ''}`}>
       <Navbar />
-      <main className="flex-1">
+      <main className={`flex-1 ${isAuthPage ? 'overflow-hidden flex flex-col justify-center' : ''}`}>
         <Outlet />
       </main>
-      <Footer />
+      {!isAuthPage && <Footer />}
     </div>
   );
 }

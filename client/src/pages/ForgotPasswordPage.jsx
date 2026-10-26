@@ -97,30 +97,30 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex items-center justify-center">
+    <div className="w-full h-full flex items-center justify-center p-3 sm:p-4 my-auto">
       <div className="w-full max-w-md">
         {/* Dossier Card Container */}
-        <div className="bg-paper-light border-3 border-ink rounded-2xl p-6 sm:p-8 shadow-hard-lg relative">
+        <div className="bg-paper-light border-3 border-ink rounded-2xl p-5 sm:p-6 shadow-hard-lg relative">
           {/* Top Classification Stamp */}
-          <div className="flex items-center justify-between border-b-2 border-ink pb-3 mb-6">
-            <span className="font-mono text-xs font-bold bg-neoPink border border-ink px-2 py-0.5 rounded shadow-hard-xs uppercase">
+          <div className="flex items-center justify-between border-b-2 border-ink pb-2 mb-3">
+            <span className="font-mono text-[11px] font-bold bg-neoPink border border-ink px-2 py-0.5 rounded shadow-hard-xs uppercase">
               SECURITY PROTOCOL
             </span>
-            <span className="font-mono text-xs font-bold text-muted uppercase">
+            <span className="font-mono text-[11px] font-bold text-muted uppercase">
               PASSWORD RECOVERY
             </span>
           </div>
 
           {/* Feedback Banners */}
           {error && (
-            <div className="mb-5 p-3.5 bg-neoPink/20 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+            <div className="mb-2.5 p-2.5 bg-neoPink/20 border-2 border-ink rounded-lg flex items-center gap-2 text-xs font-mono font-bold text-ink">
               <ShieldAlert className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
               <span>{error}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="mb-5 p-3.5 bg-neoGreen/20 border-2 border-ink rounded-lg flex items-center gap-2.5 text-xs font-mono font-bold text-ink">
+            <div className="mb-2.5 p-2.5 bg-neoGreen/20 border-2 border-ink rounded-lg flex items-center gap-2 text-xs font-mono font-bold text-ink">
               <CheckCircle2 className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
               <span>{successMessage}</span>
             </div>
@@ -128,7 +128,7 @@ export function ForgotPasswordPage() {
 
           {/* Step 1: Request Reset Code via Email */}
           {!isOtpStep ? (
-            <div className="space-y-6">
+            <div className="space-y-3">
               <Link
                 to="/login"
                 className="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-ink hover:text-neoPurple transition-colors"
@@ -138,21 +138,21 @@ export function ForgotPasswordPage() {
               </Link>
 
               <div>
-                <h1 className="font-display font-extrabold text-2xl sm:text-3xl uppercase tracking-tight text-ink">
+                <h1 className="font-display font-extrabold text-2xl uppercase tracking-tight text-ink">
                   RESET INVESTIGATOR PASSWORD
                 </h1>
-                <p className="font-sans text-xs text-muted mt-1.5 leading-relaxed">
-                  Enter your registered detective email address and we will dispatch a single-use 6-digit verification code.
+                <p className="font-sans text-xs text-muted mt-0.5 leading-snug">
+                  Enter your registered detective email to receive a 6-digit recovery code.
                 </p>
               </div>
 
-              <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-3">
                 <div>
-                  <label htmlFor="forgot-email" className="block font-mono text-xs font-bold uppercase text-ink mb-1.5">
+                  <label htmlFor="forgot-email" className="block font-mono text-[11px] font-bold uppercase text-ink mb-1">
                     Registered Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-muted absolute left-3.5 top-3.5 stroke-[2.5]" />
+                    <Mail className="w-4 h-4 text-muted absolute left-3 top-2.5 stroke-[2.5]" />
                     <input
                       id="forgot-email"
                       type="email"
@@ -160,7 +160,7 @@ export function ForgotPasswordPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="detective@agency.com"
-                      className="w-full pl-10 pr-3 py-2.5 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
+                      className="w-full pl-9 pr-3 py-2 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
                     />
                   </div>
                 </div>
@@ -169,14 +169,14 @@ export function ForgotPasswordPage() {
                   type="submit"
                   variant="primary"
                   disabled={isLoading}
-                  className="w-full py-3 text-sm font-extrabold justify-center mt-2"
+                  className="w-full py-2.5 text-sm font-extrabold justify-center mt-1"
                 >
                   <ArrowRight className="w-4 h-4 mr-2 stroke-[2.5]" />
                   {isLoading ? 'DISPATCHING...' : 'SEND RESET CODE'}
                 </Button>
               </form>
 
-              <div className="pt-4 border-t-2 border-ink/30 text-center font-mono text-xs text-muted">
+              <div className="pt-2.5 border-t-2 border-ink/30 text-center font-mono text-xs text-muted">
                 <span>Remember your password? </span>
                 <Link to="/login" className="font-bold text-ink underline hover:text-neoPurple">
                   Sign in
@@ -185,7 +185,7 @@ export function ForgotPasswordPage() {
             </div>
           ) : (
             /* Step 2: Enter 6-Digit OTP and New Password */
-            <div className="space-y-6">
+            <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => {
@@ -199,20 +199,20 @@ export function ForgotPasswordPage() {
               </button>
 
               <div>
-                <div className="w-12 h-12 bg-neoPink border-2 border-ink rounded-xl flex items-center justify-center mb-3 shadow-hard-sm">
-                  <KeyRound className="w-6 h-6 text-ink stroke-[2.5]" />
+                <div className="w-10 h-10 bg-neoPink border-2 border-ink rounded-lg flex items-center justify-center mb-2 shadow-hard-xs">
+                  <KeyRound className="w-5 h-5 text-ink stroke-[2.5]" />
                 </div>
-                <h2 className="font-display font-extrabold text-2xl uppercase tracking-tight text-ink">
+                <h2 className="font-display font-extrabold text-xl uppercase tracking-tight text-ink">
                   ENTER RESET CODE & NEW PASSWORD
                 </h2>
-                <p className="font-sans text-xs text-muted mt-1 leading-relaxed">
-                  Enter the OTP sent to <strong className="text-ink">{pendingEmail}</strong> and your new password.
+                <p className="font-sans text-xs text-muted mt-0.5 leading-snug">
+                  Enter the code sent to <strong className="text-ink">{pendingEmail}</strong> and your new password.
                 </p>
               </div>
 
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-2.5">
                 <div>
-                  <label htmlFor="reset-otp" className="block font-mono text-xs font-bold uppercase text-ink mb-1.5">
+                  <label htmlFor="reset-otp" className="block font-mono text-[11px] font-bold uppercase text-ink mb-1">
                     6-Digit Reset Code
                   </label>
                   <input
@@ -223,16 +223,16 @@ export function ForgotPasswordPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
-                    className="w-full text-center font-mono text-2xl font-extrabold tracking-[6px] py-2.5 bg-white border-2 border-ink rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
+                    className="w-full text-center font-mono text-2xl font-extrabold tracking-[6px] py-2 bg-white border-2 border-ink rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="reset-new-password" className="block font-mono text-xs font-bold uppercase text-ink mb-1.5">
+                  <label htmlFor="reset-new-password" className="block font-mono text-[11px] font-bold uppercase text-ink mb-1">
                     New Password
                   </label>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-muted absolute left-3.5 top-3.5 stroke-[2.5]" />
+                    <Lock className="w-4 h-4 text-muted absolute left-3 top-2.5 stroke-[2.5]" />
                     <input
                       id="reset-new-password"
                       type="password"
@@ -241,7 +241,7 @@ export function ForgotPasswordPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Minimum 8 characters"
-                      className="w-full pl-10 pr-3 py-2.5 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
+                      className="w-full pl-9 pr-3 py-2 bg-white border-2 border-ink rounded-lg font-sans text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-neoYellow shadow-hard-xs"
                     />
                   </div>
                 </div>
@@ -250,14 +250,14 @@ export function ForgotPasswordPage() {
                   type="submit"
                   variant="primary"
                   disabled={isLoading || otp.length !== 6 || newPassword.length < 8}
-                  className="w-full py-3 text-sm font-extrabold justify-center mt-2"
+                  className="w-full py-2.5 text-sm font-extrabold justify-center mt-1"
                 >
                   {isLoading ? 'UPDATING...' : 'RESET PASSWORD & SIGN IN'}
                 </Button>
 
-                <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center justify-between pt-1">
                   <span className="font-mono text-xs text-muted">
-                    {countdown > 0 ? `Resend code in ${countdown}s` : 'Did not receive code?'}
+                    {countdown > 0 ? `Resend in ${countdown}s` : 'Did not receive code?'}
                   </span>
                   <button
                     type="button"
