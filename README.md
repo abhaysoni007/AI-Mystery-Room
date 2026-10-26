@@ -1,5 +1,13 @@
 # AI Mystery Room
 
+[![Live Production](https://img.shields.io/badge/Live%20Platform-mysterio.abhaysoni.app-F59E0B?style=for-the-badge&logo=vercel&logoColor=black)](https://mysterio.abhaysoni.app)
+[![API Gateway](https://img.shields.io/badge/API%20Gateway-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://ai-mystery-room-api-jwxe.onrender.com)
+[![Platform Status](https://img.shields.io/badge/System%20Status-Operational-brightgreen?style=for-the-badge)](https://ai-mystery-room-api-jwxe.onrender.com/health)
+
+> **Live Website:** [https://mysterio.abhaysoni.app](https://mysterio.abhaysoni.app)  
+> **API Gateway:** [https://ai-mystery-room-api-jwxe.onrender.com](https://ai-mystery-room-api-jwxe.onrender.com)  
+> **API Health Check:** [https://ai-mystery-room-api-jwxe.onrender.com/health](https://ai-mystery-room-api-jwxe.onrender.com/health)
+
 An interactive, AI-assisted detective mystery investigation platform built with a high-contrast Neo-Brutalist design system. Players step into the role of a lead investigator: generating original crime cases, inspecting digital evidence across specialized viewers, interrogating suspect statements, tracking timelines, recording theories, and submitting server-authoritative accusations against a hidden canonical solution.
 
 Unlike conventional storytelling chatbots, **AI Mystery Room** enforces strict detective-fiction rules: the ground truth, culprit, motive, and decisive refutation evidence are established and locked before gameplay begins. The canonical solution is strictly sealed on the backend, ensuring players must actively deduce the culprit from clues, alibis, and documented contradictions rather than prompting an LLM for answers.
@@ -759,35 +767,50 @@ The engine logs a warning to the terminal and returns a handcrafted, structurall
 
 ## Production Build and Deployment Guide
 
-### Deployment Readiness Checklist
+### Live Architecture
 
-- [ ] **Node.js Environment:** Configure a Node.js 18+ or 20+ runtime environment (e.g., Render, Railway, Fly.io, AWS ECS, or Ubuntu VPS).
-- [ ] **MongoDB Cluster:** Set up a production database (e.g., MongoDB Atlas) and configure connection string in `MONGODB_URI`.
-- [ ] **Rotate JWT Secret:** Set `JWT_SECRET` to a cryptographically secure random string with at least 32 characters.
-- [ ] **Google Gemini Key:** Obtain an API key from [Google AI Studio](https://aistudio.google.com/) and configure `GEMINI_API_KEY`.
-- [ ] **Production SMTP Configuration:** Configure real SMTP credentials (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) using Brevo, SendGrid, Amazon SES, or Gmail App Passwords to enable outbound email verification.
-- [ ] **Configure Client URL:** Set `CLIENT_URL` on the backend to match your production frontend domain to satisfy CORS checks.
-- [ ] **Set Vite API Target:** Configure `VITE_API_URL` during frontend build to point to the production backend API base URL (e.g., `https://api.yourdomain.com/api/v1`).
+The production application is continuously deployed across two cloud environments:
+- **Frontend:** Hosted on **Vercel** with custom apex routing and edge SSL at **[https://mysterio.abhaysoni.app](https://mysterio.abhaysoni.app)** (fallback alias: `https://client-eta-lake-93.vercel.app`).
+- **Backend:** Hosted on **Render** (Node.js Web Service) at **[https://ai-mystery-room-api-jwxe.onrender.com](https://ai-mystery-room-api-jwxe.onrender.com)**.
+- **Database:** Hosted on **MongoDB Atlas** with server-only connection strings.
+- **AI Mystery Architect:** Google Gemini via `@google/genai` structured outputs.
 
-### Production Build Commands
-
-#### 1. Compile the Frontend
-```bash
-# From repository root
-npm run build
 ```
-*Outputs an optimized, minified production single-page application into `client/dist/`.*
-
-#### 2. Launch the Production Backend
-```bash
-# Inside server directory
-cd server
-NODE_ENV=production node src/server.js
+┌─────────────────────────────────┐           ┌────────────────────────────────────────┐
+│        Vercel Edge SPA          │  HTTPS    │          Render Web Service            │
+│  https://mysterio.abhaysoni.app │ ────────> │ https://ai-mystery-room-api-jwxe...    │
+│    (React 19 + Tailwind CSS)    │  CORS     │     (Express + Mongoose + Node 24)     │
+└─────────────────────────────────┘           └───────────────────┬────────────────────┘
+                                                                  │
+                                                ┌─────────────────┴─────────────────┐
+                                                ▼                                   ▼
+                                     ┌─────────────────────┐             ┌─────────────────────┐
+                                     │    MongoDB Atlas    │             │    Google Gemini    │
+                                     │ (Encrypted Storage) │             │ (Structured Engine) │
+                                     └─────────────────────┘             └─────────────────────┘
 ```
-*(Or use process managers like PM2: `pm2 start src/server.js --name ai-mystery-room`)*
 
-#### 3. Reverse Proxy & Static Serving
-For single-server deployments (e.g., Nginx, Caddy), serve `client/dist` for static routes and proxy requests beginning with `/api/` to `http://localhost:5000`.
+### Production Build & Deploy Artifacts
+
+- **Render Blueprint ([`render.yaml`](render.yaml)):** Infrastructure-as-Code blueprint configuring service build (`npm install`), start (`npm start`), and root health checks (`/health`).
+- **Vercel Routing ([`client/vercel.json`](client/vercel.json)):** Single Page Application rewrite rules ensuring deep routes (`/dashboard`, `/case/:id`) resolve smoothly on direct refresh.
+
+### Production Environment Variables
+
+#### Backend (Render Dashboard)
+| Variable | Purpose | Classification |
+| :--- | :--- | :--- |
+| `NODE_ENV` | Set to `production` | Public |
+| `MONGODB_URI` | Production MongoDB Atlas connection string | **Secret (Server Only)** |
+| `JWT_SECRET` | Cryptographically secure random 64-character signing secret | **Secret (Server Only)** |
+| `GEMINI_API_KEY` | Google AI Studio Gemini API key | **Secret (Server Only)** |
+| `GEMINI_MODEL` | `gemini-1.5-flash` | Public |
+| `CLIENT_URL` | `https://mysterio.abhaysoni.app` (Whitelisted for CORS) | Public |
+
+#### Frontend (Vercel Project Settings)
+| Variable | Purpose | Classification |
+| :--- | :--- | :--- |
+| `VITE_API_URL` | `https://ai-mystery-room-api-jwxe.onrender.com/api/v1` | Public Bundle Config |
 
 ---
 
