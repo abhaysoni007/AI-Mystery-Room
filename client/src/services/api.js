@@ -1,5 +1,8 @@
 const API_BASE_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:5000/api/v1';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+  (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost:3000') && window.location.origin !== 'null'
+    ? `${window.location.origin}/api/v1`
+    : 'http://localhost:5000/api/v1');
 
 let authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('ai_mystery_token') : null;
 
