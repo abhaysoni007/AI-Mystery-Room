@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/v1/:match*",
+      "destination": "https://ai-mystery-room-api-jwxe.onrender.com/api/v1/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }

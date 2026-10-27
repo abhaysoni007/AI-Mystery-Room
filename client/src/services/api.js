@@ -1,7 +1,10 @@
 const API_BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost:3000') && window.location.origin !== 'null'
-    ? `${window.location.origin}/api/v1`
+  (typeof window !== 'undefined' &&
+  window.location?.hostname &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? 'https://ai-mystery-room-api-jwxe.onrender.com/api/v1'
     : 'http://localhost:5000/api/v1');
 
 let authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('ai_mystery_token') : null;
