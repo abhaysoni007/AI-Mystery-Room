@@ -10,7 +10,7 @@ const envSchema = z.object({
   CLIENT_URL: z.string().default('http://localhost:5173'),
   JWT_SECRET: z.string().default('super_secret_jwt_key_change_in_production'),
   GEMINI_API_KEY: z.string().optional().default(''),
-  GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_MODEL: z.string().default('gemini-flash-lite-latest'),
   OPENROUTER_API_KEY: z.string().optional().default(''),
   OPENROUTER_MODEL: z.string().default('nvidia/nemotron-3-ultra-550b-a55b:free'),
   OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
@@ -19,11 +19,10 @@ const envSchema = z.object({
 const rawGeminiModel = process.env.GEMINI_MODEL;
 const sanitizedGeminiModel =
   !rawGeminiModel ||
-  rawGeminiModel === 'gemini-1.5-flash' ||
-  rawGeminiModel === 'gemini-2.0-flash' ||
-  rawGeminiModel === 'gemini-2.5-flash' ||
-  rawGeminiModel === 'models/gemini-1.5-flash'
-    ? 'gemini-3.8-flash'
+  rawGeminiModel.includes('gemini-1.5') ||
+  rawGeminiModel.includes('gemini-2.0') ||
+  rawGeminiModel.includes('gemini-2.5')
+    ? 'gemini-flash-lite-latest'
     : rawGeminiModel;
 
 const rawEnv = {

@@ -198,88 +198,112 @@ export async function generateMysteryCase({
 
   // 1. Attempt Primary Generation via Google Gemini
   if (geminiApiKey || modelClient) {
-    let modelName = env.GEMINI_MODEL || 'gemini-3.8-flash';
-    if (
-      modelName.includes('gemini-1.5') ||
-      modelName.includes('gemini-2.0') ||
-      modelName.includes('gemini-2.5')
-    ) {
-      modelName = 'gemini-3.8-flash';
-    }
+    const modelCandidates = modelClient
+      ? [env.GEMINI_MODEL || 'gemini-flash-lite-latest']
+      : Array.from(
+          new Set([
+            env.GEMINI_MODEL || 'gemini-flash-lite-latest',
+            'gemini-flash-lite-latest',
+            'gemini-3.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-3-flash-preview',
+            'gemini-3.8-flash',
+          ])
+        ).filter(
+          (m) =>
+            m &&
+            !m.includes('gemini-1.5') &&
+            !m.includes('gemini-2.0') &&
+            !m.includes('gemini-2.5')
+        );
+
     const ai = modelClient || new GoogleGenAI({ apiKey: geminiApiKey });
 
-    const maxAttempts = 2;
-    let correctiveFeedback = '';
+    for (const candidateModel of modelCandidates) {
+      const maxAttempts = 2;
+      let correctiveFeedback = '';
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const prompt = buildGenerationPrompt({
-          scenario,
-          category,
-          difficulty,
-          length,
-          recentCases,
-          correctiveFeedback,
-        });
-
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: buildGeminiResponseSchema(),
-          },
-        });
-
-        const rawText = response.text || (typeof response === 'string' ? response : null);
-        if (!rawText || !rawText.trim()) {
-          throw new Error('Empty response received from Gemini API');
-        }
-
-        let parsed;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          parsed = JSON.parse(rawText);
-        } catch (jsonErr) {
-          throw new Error(`Model output was not valid JSON: ${jsonErr.message}`);
-        }
+          const prompt = buildGenerationPrompt({
+            scenario,
+            category,
+            difficulty,
+            length,
+            recentCases,
+            correctiveFeedback,
+          });
 
-        const sanitized = sanitizeCaseReferences(parsed);
-        const validation = validateCaseReferences(sanitized);
+          const response = await ai.models.generateContent({
+            model: candidateModel,
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: buildGeminiResponseSchema(),
+            },
+          });
 
-        if (!validation.valid) {
-          throw new Error(`Case failed detective reference integrity validation: ${validation.errors.join('; ')}`);
-        }
+          const rawText = response.text || (typeof response === 'string' ? response : null);
+          if (!rawText || !rawText.trim()) {
+            throw new Error('Empty response received from Gemini API');
+          }
 
-        // Check scenario diversity against user's recent cases
-        if (recentCases.length > 0) {
-          const similarity = calculateScenarioSimilarity(sanitized, recentCases);
-          if (similarity > 0.75) {
+          let parsed;
+          try {
+            parsed = JSON.parse(rawText);
+          } catch (jsonErr) {
+            throw new Error(`Model output was not valid JSON: ${jsonErr.message}`);
+          }
+
+          const sanitized = sanitizeCaseReferences(parsed);
+          const validation = validateCaseReferences(sanitized);
+
+          if (!validation.valid) {
             throw new Error(
-              `Generated case is too similar to recent cases (similarity score: ${similarity.toFixed(2)}). Must use a different culprit and evidence mechanic.`
+              `Case failed detective reference integrity validation: ${validation.errors.join('; ')}`
             );
           }
-        }
 
-        // Gemini generation succeeded!
-        return sanitized;
-      } catch (err) {
-        geminiError = err;
-        correctiveFeedback = err.message;
-        console.warn(`[GeminiService] Attempt ${attempt} failed: ${err.message}`);
+          // Check scenario diversity against user's recent cases
+          if (recentCases.length > 0) {
+            const similarity = calculateScenarioSimilarity(sanitized, recentCases);
+            if (similarity > 0.75) {
+              throw new Error(
+                `Generated case is too similar to recent cases (similarity score: ${similarity.toFixed(2)}). Must use a different culprit and evidence mechanic.`
+              );
+            }
+          }
 
-        // If error is an unrecoverable auth/quota/not-found error, don't loop
-        const msg = err.message || '';
-        if (
-          msg.includes('API_KEY_INVALID') ||
-          msg.includes('PERMISSION_DENIED') ||
-          msg.includes('RESOURCE_EXHAUSTED') ||
-          msg.includes('quota') ||
-          msg.includes('NOT_FOUND') ||
-          msg.includes('not found') ||
-          msg.includes('no longer available')
-        ) {
-          break;
+          // Gemini generation succeeded!
+          return sanitized;
+        } catch (err) {
+          geminiError = err;
+          correctiveFeedback = err.message;
+          console.warn(`[GeminiService] [${candidateModel}] Attempt ${attempt} failed: ${err.message}`);
+
+          // If error is an unrecoverable auth error, don't loop
+          const msg = err.message || '';
+          if (msg.includes('API_KEY_INVALID') || msg.includes('PERMISSION_DENIED')) {
+            break;
+          }
+
+          // If quota or not found or unavailable, break attempt loop to switch to next candidate model
+          if (
+            msg.includes('RESOURCE_EXHAUSTED') ||
+            msg.includes('quota') ||
+            msg.includes('NOT_FOUND') ||
+            msg.includes('not found') ||
+            msg.includes('no longer available') ||
+            msg.includes('UNAVAILABLE')
+          ) {
+            break;
+          }
         }
+      }
+
+      const msg = geminiError?.message || '';
+      if (msg.includes('API_KEY_INVALID') || msg.includes('PERMISSION_DENIED')) {
+        break;
       }
     }
   } else {

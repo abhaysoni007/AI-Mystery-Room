@@ -286,6 +286,7 @@ export async function generateCaseWithOpenRouter({
           temperature: 0.7,
           max_tokens: 3500,
         }),
+        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(35000) : undefined,
       });
 
       if (!response.ok) {
