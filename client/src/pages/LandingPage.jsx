@@ -46,7 +46,7 @@ export function LandingPage() {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => navigate(`/case/${currentCase.id}`)}
+                onClick={() => navigate(`/case/${activeCase.id}`)}
                 className="text-lg px-8 py-4"
               >
                 <Search className="w-5 h-5 mr-2 stroke-[2.5]" />
@@ -104,7 +104,7 @@ export function LandingPage() {
                   <Button
                     variant="primary"
                     className="w-full justify-between"
-                    onClick={() => navigate(`/case/${currentCase.id}`)}
+                    onClick={() => navigate(`/case/${activeCase.id}`)}
                   >
                     ENTER DOSSIER ROOM
                     <ArrowRight className="w-5 h-5 stroke-[2.5]" />
@@ -123,7 +123,7 @@ export function LandingPage() {
       <FeatureGrid />
 
       {/* Sample Case */}
-      <SampleCaseCard caseData={currentCase} />
+      <SampleCaseCard caseData={activeCase} />
 
       {/* Closing CTA */}
       <section className="py-20 border-t-2 border-ink bg-white text-center">
