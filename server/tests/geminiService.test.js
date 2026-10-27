@@ -261,19 +261,119 @@ describe('geminiService generateMysteryCase', () => {
     expect(validation.errors).toEqual([]);
   });
 
-  it('produces a solver-guaranteed playable case when fallback is explicitly triggered', async () => {
+  it('falls back to OpenRouter when Gemini model fails and produces a valid case', async () => {
+    const geminiFailClient = {
+      models: {
+        generateContent: vi.fn().mockRejectedValue(new Error('RESOURCE_EXHAUSTED')),
+      },
+    };
+
+    const mockOpenRouterCase = {
+      title: 'The Vanishing of Lord Ravenscroft',
+      summary: 'Lord Ravenscroft disappeared from his locked study before midnight.',
+      category: 'disappearance',
+      difficulty: 'medium',
+      length: 'standard',
+      incident: {
+        description: 'Study found empty with luggage missing.',
+        location: 'Ravenscroft Manor',
+        timeDescription: 'Between 23:00 and 00:00',
+      },
+      suspects: [
+        {
+          id: 'suspect_alyssa',
+          name: 'Alyssa Bennett',
+          occupation: 'Private Secretary',
+          relationship: 'Confidante',
+          summary: 'Had safe combination.',
+          alibiPublicText: 'Claims to be in the parlor.',
+          isCulprit: true,
+          relatedEvidenceIds: ['ev_study_key'],
+          relatedEventIds: ['evt_vanish'],
+        },
+        {
+          id: 'suspect_julian',
+          name: 'Julian Mercer',
+          occupation: 'Estate Attorney',
+          relationship: 'Will executor',
+          summary: 'Handling debts.',
+          alibiPublicText: 'Was in the library.',
+          isCulprit: false,
+          relatedEvidenceIds: ['ev_estate_ledger'],
+          relatedEventIds: ['evt_vanish'],
+        },
+      ],
+      timeline: [
+        {
+          id: 'evt_vanish',
+          timeDescription: '23:30',
+          description: 'Car seen leaving gate.',
+          displayOrder: 1,
+        },
+        {
+          id: 'evt_report',
+          timeDescription: '00:00',
+          description: 'Disappearance reported to security.',
+          displayOrder: 2,
+        },
+      ],
+      evidence: [
+        {
+          id: 'ev_study_key',
+          type: 'document',
+          title: 'Safe Access Log',
+          description: 'Key entry record.',
+          content: { text: 'Key SEC-001 used at 23:25.' },
+        },
+        {
+          id: 'ev_estate_ledger',
+          type: 'document',
+          title: 'Estate Ledger',
+          description: 'Financial ledger.',
+          content: { text: 'Entries logged at 21:00.' },
+        },
+        {
+          id: 'ev_gate_cam',
+          type: 'surveillance',
+          title: 'Gate Camera',
+          description: 'Footage.',
+          content: { caption: 'Vehicle departure at 23:30.' },
+        },
+      ],
+      solution: {
+        culpritId: 'suspect_alyssa',
+        culpritName: 'Alyssa Bennett',
+        motive: 'Embezzlement coverup',
+        method: 'Staged departure using private vehicle',
+        rationale: 'Safe log proves key was used right before disappearance.',
+        decisiveEvidenceIds: ['ev_study_key'],
+        redHerrings: [],
+      },
+    };
+
+    const mockOpenRouterFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify(mockOpenRouterCase) } }],
+      }),
+    });
+
     const generated = await generateMysteryCase({
       scenario: 'The mysterious disappearance of Lord Ravenscroft',
       category: 'disappearance',
       difficulty: 'medium',
       length: 'standard',
-      forceFallback: true,
+      modelClient: geminiFailClient,
+      openRouterClient: mockOpenRouterFetch,
     });
 
     expect(generated).toBeDefined();
+    expect(generated.title).toBe('The Vanishing of Lord Ravenscroft');
     expect(generated.category).toBe('disappearance');
     const validation = validateCaseReferences(generated);
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
+    expect(mockOpenRouterFetch).toHaveBeenCalledTimes(1);
   });
 });
+

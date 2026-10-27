@@ -1,10 +1,99 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
 import { connectTestDb, closeTestDb } from './setup.js';
 import { User } from '../src/models/User.js';
 import { Case } from '../src/models/Case.js';
 import { InvestigationProgress } from '../src/models/InvestigationProgress.js';
+
+vi.mock('../src/services/geminiService.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    generateMysteryCase: vi.fn().mockImplementation(async ({ scenario, category, difficulty, length }) => ({
+      title: 'The Stolen Renaissance Fresco',
+      summary: `Investigation into: ${scenario}`,
+      category: category || 'theft',
+      difficulty: difficulty || 'medium',
+      length: length || 'standard',
+      incident: {
+        description: 'Fresco cut from wall.',
+        location: 'Palazzo Medici',
+        timeDescription: 'Midnight',
+      },
+      suspects: [
+        {
+          id: 'suspect_1',
+          name: 'Marcello Rossi',
+          occupation: 'Conservator',
+          relationship: 'Advisor',
+          summary: 'Gambling debts.',
+          alibiPublicText: 'Was in Rome.',
+          isCulprit: true,
+          relatedEvidenceIds: ['ev_1'],
+          relatedEventIds: ['evt_1'],
+        },
+        {
+          id: 'suspect_2',
+          name: 'Bianca Conti',
+          occupation: 'Archivist',
+          relationship: 'Genealogist',
+          summary: 'Disputed ownership.',
+          alibiPublicText: 'Was in library.',
+          isCulprit: false,
+          relatedEvidenceIds: ['ev_2'],
+          relatedEventIds: ['evt_2'],
+        },
+      ],
+      timeline: [
+        {
+          id: 'evt_1',
+          timeDescription: '23:45',
+          description: 'Wire saw sound.',
+          displayOrder: 1,
+        },
+        {
+          id: 'evt_2',
+          timeDescription: '00:15',
+          description: 'Gate opened.',
+          displayOrder: 2,
+        },
+      ],
+      evidence: [
+        {
+          id: 'ev_1',
+          type: 'document',
+          title: 'Train Ticket',
+          description: 'Ticket timestamp.',
+          content: { text: 'Validated next morning.' },
+        },
+        {
+          id: 'ev_2',
+          type: 'document',
+          title: 'Library Ledger',
+          description: 'Check out log.',
+          content: { text: 'Logged at 23:30.' },
+        },
+        {
+          id: 'ev_3',
+          type: 'surveillance',
+          title: 'Gate Camera',
+          description: 'Gate feed.',
+          content: { caption: 'Shadow seen.' },
+        },
+      ],
+      solution: {
+        culpritId: 'suspect_1',
+        culpritName: 'Marcello Rossi',
+        motive: 'Gambling debts',
+        method: 'Diamond-wire extraction',
+        rationale: 'Ticket timestamp proves alibi was false.',
+        decisiveEvidenceIds: ['ev_1'],
+        redHerrings: [],
+      },
+    })),
+  };
+});
 
 describe('Cases & Progress REST API', () => {
   let authToken;

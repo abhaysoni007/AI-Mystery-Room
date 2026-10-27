@@ -36,7 +36,6 @@ const createCaseSchema = z.object({
     .default('theft'),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional().default('medium'),
   length: z.enum(['short', 'standard', 'extended']).optional().default('standard'),
-  forceFallback: z.boolean().optional().default(false),
 });
 
 // GET /api/v1/cases - List authenticated user's private cases
@@ -73,7 +72,7 @@ casesRouter.post('/', async (req, res, next) => {
       });
     }
 
-    const { scenario, category, difficulty, length, forceFallback } = validation.data;
+    const { scenario, category, difficulty, length } = validation.data;
     const userId = req.user._id.toString();
 
     // Query user's recent cases to inject diversity context
@@ -90,7 +89,6 @@ casesRouter.post('/', async (req, res, next) => {
         difficulty,
         length,
         recentCases,
-        forceFallback,
       });
     } catch (aiErr) {
       if (aiErr instanceof AiGenerationError) {

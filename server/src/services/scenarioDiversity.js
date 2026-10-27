@@ -50,6 +50,21 @@ export const SCENARIO_ARCHETYPES = [
 ];
 
 /**
+ * Selects an archetype blueprint based on recent cases count to ensure variety.
+ */
+export function selectArchetypeBlueprint(recentCases = []) {
+  const index = Math.abs(recentCases.length) % SCENARIO_ARCHETYPES.length;
+  const base = SCENARIO_ARCHETYPES[index];
+  return {
+    name: base.subgenre,
+    description: base.mechanic,
+    suggestedEvidenceTypes: base.evidenceTypes,
+    culpritMotives: [base.motiveClass],
+    contradictionFocus: base.contradictionFocus,
+  };
+}
+
+/**
  * Extracts a lightweight structural fingerprint from recent user cases.
  */
 export function extractCaseFingerprint(caseDoc) {

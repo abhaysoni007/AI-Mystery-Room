@@ -162,3 +162,42 @@ export function assertCaseReferences(caseData) {
     throw error;
   }
 }
+
+/**
+ * Sanitizes and repairs minor cross-referencing flaws from LLM outputs so valid mysteries
+ * are not discarded due to benign non-existent references.
+ */
+export function sanitizeCaseReferences(caseData) {
+  if (!caseData || typeof caseData !== 'object') return caseData;
+
+  const suspectIds = new Set((caseData.suspects || []).map((s) => s.id));
+  const evidenceIds = new Set((caseData.evidence || []).map((e) => e.id));
+  const timelineIds = new Set((caseData.timeline || []).map((t) => t.id));
+
+  // Sanitize suspects
+  for (const s of caseData.suspects || []) {
+    s.relatedEvidenceIds = (s.relatedEvidenceIds || []).filter((id) => evidenceIds.has(id));
+    s.relatedEventIds = (s.relatedEventIds || []).filter((id) => timelineIds.has(id));
+  }
+
+  // Sanitize timeline
+  for (const t of caseData.timeline || []) {
+    t.relatedSuspectIds = (t.relatedSuspectIds || []).filter((id) => suspectIds.has(id));
+    t.relatedEvidenceIds = (t.relatedEvidenceIds || []).filter((id) => evidenceIds.has(id));
+  }
+
+  // Sanitize evidence
+  for (const e of caseData.evidence || []) {
+    e.relatedSuspectIds = (e.relatedSuspectIds || []).filter((id) => suspectIds.has(id));
+    e.relatedEventIds = (e.relatedEventIds || []).filter((id) => timelineIds.has(id));
+  }
+
+  // Sanitize red herrings
+  if (caseData.solution && Array.isArray(caseData.solution.redHerrings)) {
+    caseData.solution.redHerrings = caseData.solution.redHerrings.filter(
+      (rh) => (!rh.suspectId || suspectIds.has(rh.suspectId)) && (!rh.evidenceId || evidenceIds.has(rh.evidenceId))
+    );
+  }
+
+  return caseData;
+}

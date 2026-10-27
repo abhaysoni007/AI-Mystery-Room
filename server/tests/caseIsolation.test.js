@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import app from '../src/app.js';
@@ -7,6 +7,95 @@ import { User } from '../src/models/User.js';
 import { Case } from '../src/models/Case.js';
 import { InvestigationProgress } from '../src/models/InvestigationProgress.js';
 import { Accusation } from '../src/models/Accusation.js';
+
+vi.mock('../src/services/geminiService.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    generateMysteryCase: vi.fn().mockImplementation(async ({ scenario, category, difficulty, length }) => ({
+      title: 'The Obsidian Crown Heist',
+      summary: `A high-stakes museum heist: ${scenario}`,
+      category: category || 'theft',
+      difficulty: difficulty || 'medium',
+      length: length || 'standard',
+      incident: {
+        description: 'Display case cut and ruby removed.',
+        location: 'Sector 4 Vault',
+        timeDescription: 'Midnight',
+      },
+      suspects: [
+        {
+          id: 'suspect_julian',
+          name: 'Julian Mercer',
+          occupation: 'Architect',
+          relationship: 'Designer',
+          summary: 'In debt.',
+          alibiPublicText: 'Was home.',
+          isCulprit: true,
+          relatedEvidenceIds: ['ev_1'],
+          relatedEventIds: ['evt_1'],
+        },
+        {
+          id: 'suspect_alyssa',
+          name: 'Alyssa Bennett',
+          occupation: 'Security Chief',
+          relationship: 'Guard lead',
+          summary: 'Held keys.',
+          alibiPublicText: 'In bunker.',
+          isCulprit: false,
+          relatedEvidenceIds: ['ev_2'],
+          relatedEventIds: ['evt_2'],
+        },
+      ],
+      timeline: [
+        {
+          id: 'evt_1',
+          timeDescription: '22:00',
+          description: 'Gate scan.',
+          displayOrder: 1,
+        },
+        {
+          id: 'evt_2',
+          timeDescription: '22:30',
+          description: 'Power cut.',
+          displayOrder: 2,
+        },
+      ],
+      evidence: [
+        {
+          id: 'ev_1',
+          type: 'document',
+          title: 'Access Log',
+          description: 'Door log.',
+          content: { text: 'Julian badge tapped.' },
+        },
+        {
+          id: 'ev_2',
+          type: 'surveillance',
+          title: 'CCTV Camera',
+          description: 'Camera feed.',
+          content: { caption: 'Corridor dark.' },
+        },
+        {
+          id: 'ev_3',
+          type: 'document',
+          title: 'Residue Report',
+          description: 'Chemical trace.',
+          content: { text: 'Solvent found.' },
+        },
+      ],
+      solution: {
+        culpritId: 'suspect_julian',
+        culpritName: 'Julian Mercer',
+        motive: 'Liquidation of priceless artifact',
+        method: 'Solvent on glass latch',
+        rationale: 'Badge scan places Julian on site during theft.',
+        decisiveEvidenceIds: ['ev_1'],
+        redHerrings: [],
+      },
+    })),
+  };
+});
 
 describe('P0 Security: Strict User-Level Case Isolation Regression Suite', () => {
   let userAToken;
