@@ -139,11 +139,110 @@ describe('caseValidator', () => {
 
 describe('geminiService generateMysteryCase', () => {
   it('generates a structurally valid, reference-sound case', async () => {
+    const mockCase = {
+      title: 'Project Chimera: Drone Prototype Heist',
+      summary: 'High-tech corporate drone prototype stolen from research lab.',
+      category: 'corporate_espionage',
+      difficulty: 'hard',
+      incident: {
+        description: 'Drone telemetry cut at 02:00 in Hangar 4.',
+        location: 'AeroTech Hangar 4',
+        timeDescription: '02:00 AM',
+      },
+      suspects: [
+        {
+          id: 'suspect_a',
+          name: 'Dr. Sarah Connor',
+          occupation: 'Chief Avionics Engineer',
+          relationship: 'Drone Designer',
+          summary: 'Had security override privileges.',
+          alibiPublicText: 'Claims to have been at home sleeping.',
+          relatedEvidenceIds: ['ev_override_log'],
+          relatedEventIds: ['evt_breach'],
+        },
+        {
+          id: 'suspect_b',
+          name: 'Greg Sanders',
+          occupation: 'Security Guard',
+          relationship: 'Hangar Night Shift Guard',
+          summary: 'Suspicious bank deposits recorded.',
+          alibiPublicText: 'Patrolling the south runway.',
+          relatedEvidenceIds: ['ev_guard_badge'],
+          relatedEventIds: ['evt_breach'],
+        },
+      ],
+      timeline: [
+        {
+          id: 'evt_breach',
+          timeDescription: '02:00',
+          description: 'Hangar doors opened via engineering override.',
+          relatedSuspectIds: ['suspect_a'],
+          relatedEvidenceIds: ['ev_override_log'],
+          displayOrder: 1,
+        },
+        {
+          id: 'evt_departure',
+          timeDescription: '02:15',
+          description: 'Unmarked van exits cargo perimeter gate.',
+          relatedSuspectIds: ['suspect_b'],
+          relatedEvidenceIds: ['ev_guard_badge'],
+          displayOrder: 2,
+        },
+      ],
+      evidence: [
+        {
+          id: 'ev_override_log',
+          type: 'access_log',
+          title: 'Hangar Door Override Log',
+          description: 'Encrypted telemetry dump.',
+          content: { text: 'Key SEC-991 [Dr. Connor] activated.' },
+          relatedSuspectIds: ['suspect_a'],
+          relatedEventIds: ['evt_breach'],
+        },
+        {
+          id: 'ev_guard_badge',
+          type: 'document',
+          title: 'Cargo Gate Guard Roster',
+          description: 'Gate log book.',
+          content: { text: 'Greg Sanders signed off on van clearance.' },
+          relatedSuspectIds: ['suspect_b'],
+          relatedEventIds: ['evt_departure'],
+        },
+        {
+          id: 'ev_camera',
+          type: 'surveillance',
+          title: 'Hangar North Camera Frame',
+          description: 'CCTV frame.',
+          content: { caption: 'Van loading drone cargo crate.' },
+          relatedSuspectIds: ['suspect_b'],
+          relatedEventIds: ['evt_breach'],
+        },
+      ],
+      solution: {
+        culpritId: 'suspect_a',
+        culpritName: 'Dr. Sarah Connor',
+        motive: 'Whistleblowing sale to defense oversight foundation',
+        method: 'Used avionics backdoor key to bypass automated perimeter lock',
+        rationale: 'Override log SEC-991 was uniquely keyed to Dr. Connor biometric fob.',
+        decisiveEvidenceIds: ['ev_override_log', 'ev_guard_badge'],
+        redHerrings: [],
+      },
+    };
+
+    const mockClient = {
+      models: {
+        generateContent: vi.fn().mockResolvedValue({
+          text: JSON.stringify(mockCase),
+        }),
+      },
+    };
+
     const generated = await generateMysteryCase({
       scenario: 'High-tech corporate drone prototype stolen from research lab',
       category: 'corporate_espionage',
       difficulty: 'hard',
       length: 'standard',
+      modelClient: mockClient,
     });
 
     expect(generated).toBeDefined();
@@ -162,7 +261,7 @@ describe('geminiService generateMysteryCase', () => {
     expect(validation.errors).toEqual([]);
   });
 
-  it('produces a solver-guaranteed playable case even if fallback is triggered', async () => {
+  it('produces a solver-guaranteed playable case when fallback is explicitly triggered', async () => {
     const generated = await generateMysteryCase({
       scenario: 'The mysterious disappearance of Lord Ravenscroft',
       category: 'disappearance',

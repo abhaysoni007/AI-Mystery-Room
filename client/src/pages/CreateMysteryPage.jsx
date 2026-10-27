@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Sparkles, Compass, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { Sparkles, Compass, AlertCircle, Loader2, ArrowRight, RefreshCw } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -52,7 +52,7 @@ export function CreateMysteryPage() {
     setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (isGenerating) return;
@@ -79,26 +79,40 @@ export function CreateMysteryPage() {
 
     setError('');
     setIsGenerating(true);
-    setGenerationStage('Establishing canonical culprit and motive...');
+    setGenerationStage('Consulting AI Mystery Architect...');
 
-    setTimeout(() => {
-      setGenerationStage('Generating suspect alibis and witness transcripts...');
-    }, 1000);
+    const stageTimer1 = setTimeout(() => {
+      setGenerationStage('Drafting suspect motives, alibis, and forensic evidence...');
+    }, 2500);
 
-    setTimeout(() => {
-      setGenerationStage('Fabricating digital access logs and forensic chemistry swabs...');
-    }, 2000);
+    const stageTimer2 = setTimeout(() => {
+      setGenerationStage('Verifying fair-play clues and locking canonical solution on server...');
+    }, 5500);
 
-    setTimeout(() => {
-      const newCase = createCase({
+    try {
+      const newCase = await createCase({
         scenario: scenario.trim(),
         difficulty,
         category,
         length,
       });
+
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
       setIsGenerating(false);
-      navigate(`/case/${newCase.id}`);
-    }, 3000);
+
+      if (newCase?.id) {
+        navigate(`/case/${newCase.id}`);
+      }
+    } catch (err) {
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+      setIsGenerating(false);
+      setError(
+        err.message ||
+          'Mystery generation encountered an unexpected error. Please verify your connection or try again with a revised premise.'
+      );
+    }
   };
 
   if (isGenerating) {
@@ -116,7 +130,7 @@ export function CreateMysteryPage() {
             <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-ink">
               SYNTHESIZING MYSTERY
             </h2>
-            <p className="font-mono text-sm font-semibold text-ink h-6">
+            <p className="font-mono text-sm font-semibold text-ink h-6 transition-all duration-300">
               {generationStage}
             </p>
           </div>
@@ -179,9 +193,19 @@ export function CreateMysteryPage() {
           />
 
           {error && (
-            <div className="flex items-center gap-2 text-danger font-mono text-xs font-bold bg-dangerBg p-3 border-2 border-danger rounded-lg">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-danger font-mono text-xs font-bold bg-dangerBg p-4 border-2 border-danger rounded-lg">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-danger rounded text-ink hover:bg-neoYellow transition-colors shadow-hard-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </button>
             </div>
           )}
 
@@ -294,7 +318,13 @@ export function CreateMysteryPage() {
           <div className="text-sm font-mono text-muted text-center sm:text-left">
             Dossier will be initialized with a guaranteed solvable culprit and timestamped clues.
           </div>
-          <Button type="submit" variant="primary" size="lg" className="w-full sm:w-auto px-8">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            disabled={isGenerating}
+            className="w-full sm:w-auto px-8"
+          >
             <Compass className="w-5 h-5 mr-2 stroke-[2.5]" />
             GENERATE MYSTERY
           </Button>

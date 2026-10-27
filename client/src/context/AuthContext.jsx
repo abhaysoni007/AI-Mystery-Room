@@ -73,6 +73,9 @@ export function AuthProvider({ children }) {
     setUser(null);
     api.setAuthToken(null);
     setIsWalkthroughOpen(false);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('ai_mystery_cases');
+    }
   }, []);
 
   const openWalkthrough = useCallback(() => {

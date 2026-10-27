@@ -1,6 +1,19 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { env } from '../config/env.js';
 import { validateCaseReferences } from './caseValidator.js';
+import {
+  buildDiversityPromptContext,
+  calculateScenarioSimilarity,
+} from './scenarioDiversity.js';
+
+export class AiGenerationError extends Error {
+  constructor(message, originalError = null, statusCode = 502) {
+    super(message);
+    this.name = 'AiGenerationError';
+    this.originalError = originalError;
+    this.statusCode = statusCode;
+  }
+}
 
 /**
  * Builds the structured JSON schema for Gemini mystery generation.
@@ -126,7 +139,9 @@ function buildGeminiResponseSchema() {
  * Sanitizes and repairs minor cross-referencing flaws from LLM outputs so valid mysteries
  * are not discarded due to benign non-existent references.
  */
-function sanitizeCaseReferences(caseData) {
+export function sanitizeCaseReferences(caseData) {
+  if (!caseData || typeof caseData !== 'object') return caseData;
+
   const suspectIds = new Set((caseData.suspects || []).map((s) => s.id));
   const evidenceIds = new Set((caseData.evidence || []).map((e) => e.id));
   const timelineIds = new Set((caseData.timeline || []).map((t) => t.id));
@@ -160,24 +175,58 @@ function sanitizeCaseReferences(caseData) {
 }
 
 /**
- * Generates a solver-guaranteed, deterministic template mystery when Gemini is unavailable or fails validation.
+ * Deterministic fallback case builder, used ONLY when explicitly requested as a demo fixture.
  */
-export function generateFallbackCase({ scenario = 'An unexplained crime has occurred', category = 'theft', difficulty = 'medium', length = 'standard' }) {
-  const categoryTitles = {
-    corporate_espionage: 'Project Chimera: The Datacenter Breach',
-    theft: 'The Obsidian Crown Heist',
-    murder: 'The Midnight Parlor Enigma',
-    disappearance: 'The Vanishing of Dr. Alistair Finch',
-    cybercrime: 'Operation Zero-Day: The Ledger Infiltration',
-    blackmail: 'The Gilded Ledger Affair',
-    other: 'The Chamber of Shadows Mystery',
+export function generateFallbackCase({
+  scenario = 'An unexplained crime has occurred',
+  category = 'theft',
+  difficulty = 'medium',
+  length = 'standard',
+} = {}) {
+  const templates = {
+    corporate_espionage: {
+      title: 'Project Chimera: The Datacenter Breach',
+      summary: `A high-stakes corporate investigation: ${scenario}`,
+      culpritId: 'suspect_alyssa',
+      culpritName: 'Alyssa Bennett',
+      motive: 'Financial gain via collusive espionage contract with offshore buyers',
+      method: 'Used internal security bypass keys to trigger power outage while staging entry using cloned credentials',
+      rationale: 'Breaker forensic report confirms bypass key registered to Alyssa Bennett.',
+    },
+    theft: {
+      title: 'The Obsidian Crown Heist',
+      summary: `A high-stakes museum heist: ${scenario}`,
+      culpritId: 'suspect_julian',
+      culpritName: 'Julian Mercer',
+      motive: 'Liquidation of priceless artifact to cover mounting debts',
+      method: 'Used specialized solvent to bypass vault display sensor without alarm',
+      rationale: 'Chemical residue on gloves matches display case seal.',
+    },
+    murder: {
+      title: 'The Midnight Parlor Enigma',
+      summary: `A locked-room homicide investigation: ${scenario}`,
+      culpritId: 'suspect_clara',
+      culpritName: 'Dr. Clara Vance',
+      motive: 'Blackmail threat regarding falsified forensic trial testimony',
+      method: 'Introduced volatile neurotoxin through the HVAC maintenance vent',
+      rationale: 'Ventilation filter fibers found in lab labcoat.',
+    },
+    disappearance: {
+      title: 'The Vanishing of Dr. Alistair Finch',
+      summary: `An unsolved disappearance investigation: ${scenario}`,
+      culpritId: 'suspect_alyssa',
+      culpritName: 'Alyssa Bennett',
+      motive: 'Preventing public disclosure of illicit lab experimentation',
+      method: 'Staged luggage departure while transporting subject via service elevator',
+      rationale: 'Security elevator telemetry conflicts with vehicle departure logs.',
+    },
   };
 
-  const title = categoryTitles[category] || `The Mystery of ${scenario.slice(0, 32)}...`;
+  const selected = templates[category] || templates.theft;
 
   const fallback = {
-    title,
-    summary: `A high-stakes investigation triggered by: ${scenario}`,
+    title: selected.title,
+    summary: selected.summary,
     category,
     difficulty,
     length,
@@ -261,7 +310,7 @@ export function generateFallbackCase({ scenario = 'An unexplained crime has occu
         sourceContext: 'Facility Security Server Audit',
         content: {
           documentType: 'log',
-          text: '22:24:58 - Badge ID: SEC-004 [BENNETT, A.] - Authentication: SUCCESS (PHYSICAL BIOMETRIC CONFIRMED)',
+          text: '22:24:58 - Badge ID: SEC-004 - Authentication: SUCCESS (PHYSICAL BIOMETRIC CONFIRMED)',
         },
         relatedSuspectIds: ['suspect_alyssa'],
         relatedEventIds: ['evt_access'],
@@ -276,7 +325,6 @@ export function generateFallbackCase({ scenario = 'An unexplained crime has occu
         content: {
           cameraLocation: 'North Access Corridor',
           caption: 'Figure in high-collar tactical coat carrying equipment bag towards vault entrance.',
-          logs: ['Optical feed interrupted: Power spike detected on breaker line 9B.'],
         },
         relatedSuspectIds: ['suspect_alyssa'],
         relatedEventIds: ['evt_blackout'],
@@ -292,8 +340,7 @@ export function generateFallbackCase({ scenario = 'An unexplained crime has occu
           participants: ['Apex_Buyer', 'Nightfall_Contact'],
           messages: [
             { sender: 'Apex_Buyer', timestamp: '18:15', text: 'Everything ready for tonight?' },
-            { sender: 'Nightfall_Contact', timestamp: '18:18', text: 'Badge SEC-004 has been cloned. Power cut timed for 22:30.' },
-            { sender: 'Apex_Buyer', timestamp: '18:20', text: 'Do not leave digital traces on Julian Mercer. He is clean.' },
+            { sender: 'Nightfall_Contact', timestamp: '18:18', text: 'Badge SEC-004 has been cloned.' },
           ],
         },
         relatedSuspectIds: ['suspect_julian'],
@@ -308,7 +355,7 @@ export function generateFallbackCase({ scenario = 'An unexplained crime has occu
         sourceContext: 'Sub-level 2 Automated Equipment Ledger',
         content: {
           documentType: 'manifest',
-          text: 'Centrifuge 4 ran in automated unmonitored batch mode. Operator presence was not required after initial setup at 19:45.',
+          text: 'Centrifuge 4 ran in automated unmonitored batch mode.',
         },
         relatedSuspectIds: ['suspect_clara'],
         relatedEventIds: ['evt_blackout'],
@@ -322,29 +369,24 @@ export function generateFallbackCase({ scenario = 'An unexplained crime has occu
         sourceContext: 'Forensic Engineering Division',
         content: {
           documentType: 'report',
-          text: 'The power cut was executed from inside the command bunker using an authorized circuit bypass key registered to Alyssa Bennett.',
+          text: 'The power cut was executed using an authorized circuit bypass key.',
         },
         relatedSuspectIds: ['suspect_alyssa'],
         relatedEventIds: ['evt_blackout'],
       },
     ],
     solution: {
-      culpritId: 'suspect_alyssa',
-      culpritName: 'Alyssa Bennett',
-      motive: 'Financial gain via collusive espionage contract with offshore buyers',
-      method: 'Used internal security bypass keys to trigger power outage while staging entry using cloned credentials',
-      rationale: 'While Julian Mercer was set up to appear disgruntled and Clara Vance had an unverified alibi, forensic evidence on breaker line 9B proves the blackout was executed using the internal bypass key in Alyssa Bennett bunker, corroborating the physical biometric verification at 22:25.',
+      culpritId: selected.culpritId,
+      culpritName: selected.culpritName,
+      motive: selected.motive,
+      method: selected.method,
+      rationale: selected.rationale,
       decisiveEvidenceIds: ['ev_access_log', 'ev_forensic_report'],
       redHerrings: [
         {
           suspectId: 'suspect_julian',
           evidenceId: 'ev_chat_transcript',
-          explanation: 'Julian Mercer public dissent made him a convenient scapegoat, but chat logs explicitly note he was innocent.',
-        },
-        {
-          suspectId: 'suspect_clara',
-          evidenceId: 'ev_lab_manifest',
-          explanation: 'Dr. Clara Vance automated assay showed she was absent, but she had merely stepped out to her office.',
+          explanation: 'Julian Mercer had contentious disputes, but had no access to the breaker room.',
         },
       ],
     },
@@ -354,67 +396,153 @@ export function generateFallbackCase({ scenario = 'An unexplained crime has occu
 }
 
 /**
- * Generates an interactive mystery case using Google Gemini with structured outputs,
- * falling back gracefully to deterministic solver-guaranteed templates if needed.
+ * Builds the complete generation prompt incorporating user specifications and diversity context.
  */
-export async function generateMysteryCase({
-  scenario = 'An unexplained theft in an executive penthouse',
-  category = 'theft',
-  difficulty = 'medium',
-  length = 'standard',
-  forceFallback = false,
-} = {}) {
-  if (forceFallback || !env.GEMINI_API_KEY) {
-    return generateFallbackCase({ scenario, category, difficulty, length });
-  }
+function buildGenerationPrompt({ scenario, category, difficulty, length, recentCases = [], correctiveFeedback = '' }) {
+  const diversityContext = buildDiversityPromptContext({ recentCases, scenario, category });
 
-  try {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    const prompt = `You are the Lead Mystery Architect for an interactive detective mystery investigation game.
+  return `You are the Lead Mystery Architect for Mysterio, an interactive detective mystery investigation game.
 Create a complete, solvable, clue-corroborated mystery case based on the following user specifications:
 - User Premise/Scenario: "${scenario}"
 - Mystery Category: "${category}"
 - Difficulty Level: "${difficulty}"
 - Case Length: "${length}"
 
-STRICT DETECTIVE FICTION RULES:
-1. Provide 3 or 4 suspects, each with a clear motive, opportunity, and alibi.
+${diversityContext}
+
+${correctiveFeedback ? `PREVIOUS GENERATION CORRECTIONS (MUST FIX):\n${correctiveFeedback}\n` : ''}
+
+STRICT DETECTIVE FICTION & FAIR-PLAY RULES:
+1. Provide 3 or 4 suspects, each with a distinct occupation, relationship to the victim/target, plausible motive, opportunity, and public alibi.
 2. Provide between 4 and 6 pieces of diverse evidence (mix of types: "chat_log", "document", "surveillance", "access_log", "image").
-3. Provide at least 3 timeline events.
+3. Provide at least 3 timeline events with chronological displayOrder.
 4. Establish ONE true culprit whose identity is in the suspects array.
 5. In the "solution" object:
    - "culpritId" MUST exactly match one of the suspect IDs.
+   - "culpritName" MUST match the culprit suspect's name.
    - "decisiveEvidenceIds" MUST be an array containing 1 to 3 evidence IDs from your evidence list that conclusively refute the culprit's alibi or prove their guilt.
-   - "redHerrings" must contain at least 1 innocent suspect whose suspicious behavior is explained by non-criminal reasons.
-6. Return only valid JSON conforming to the schema.`;
+   - "redHerrings" must contain at least 1 innocent suspect whose suspicious behavior is explained by benign or non-culprit reasons.
+6. The solution MUST be logically airtight. There must be one clear deductive contradiction or forensic proof connecting the decisive evidence to the culprit.
+7. Return only valid JSON conforming strictly to the requested schema.`;
+}
 
-    const modelName = env.GEMINI_MODEL || 'gemini-1.5-flash';
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: buildGeminiResponseSchema(),
-      },
-    });
-
-    const rawText = response.text || (typeof response === 'string' ? response : null);
-    if (!rawText) {
-      throw new Error('Empty response received from Gemini API');
-    }
-
-    const parsed = JSON.parse(rawText);
-    const sanitized = sanitizeCaseReferences(parsed);
-    const validation = validateCaseReferences(sanitized);
-
-    if (!validation.valid) {
-      console.warn('Gemini generated case failed reference validation. Falling back to guaranteed template:', validation.errors);
-      return generateFallbackCase({ scenario, category, difficulty, length });
-    }
-
-    return sanitized;
-  } catch (error) {
-    console.warn('Gemini mystery generation encountered an error or network limitation. Safely using solver template:', error.message);
+/**
+ * Generates an interactive mystery case using Gemini with structured outputs and diversity guarantees.
+ * Throws AiGenerationError on failure; never silently falls back to a static case.
+ *
+ * @param {Object} options
+ * @param {string} options.scenario - User-provided premise
+ * @param {string} options.category - Mystery genre/category
+ * @param {string} options.difficulty - Difficulty level
+ * @param {string} options.length - Case duration
+ * @param {Array} options.recentCases - Recent user cases for diversity comparison
+ * @param {boolean} options.forceFallback - Explicitly request deterministic fallback (demo mode only)
+ * @param {Object} options.modelClient - Injectable GenAI client for testing
+ */
+export async function generateMysteryCase({
+  scenario = 'An unexplained theft in an executive penthouse',
+  category = 'theft',
+  difficulty = 'medium',
+  length = 'standard',
+  recentCases = [],
+  forceFallback = false,
+  modelClient = null,
+} = {}) {
+  // Demo fallback is ONLY permitted when explicitly forced
+  if (forceFallback) {
     return generateFallbackCase({ scenario, category, difficulty, length });
   }
+
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey && !modelClient) {
+    throw new AiGenerationError(
+      'Gemini API key is not configured. Please set GEMINI_API_KEY in server environment.',
+      null,
+      503
+    );
+  }
+
+  const modelName = env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const ai = modelClient || new GoogleGenAI({ apiKey });
+
+  const maxAttempts = 2;
+  let lastError = null;
+  let correctiveFeedback = '';
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const prompt = buildGenerationPrompt({
+        scenario,
+        category,
+        difficulty,
+        length,
+        recentCases,
+        correctiveFeedback,
+      });
+
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: buildGeminiResponseSchema(),
+        },
+      });
+
+      const rawText = response.text || (typeof response === 'string' ? response : null);
+      if (!rawText || !rawText.trim()) {
+        throw new Error('Empty response received from Gemini API');
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch (jsonErr) {
+        throw new Error(`Model output was not valid JSON: ${jsonErr.message}`);
+      }
+
+      const sanitized = sanitizeCaseReferences(parsed);
+      const validation = validateCaseReferences(sanitized);
+
+      if (!validation.valid) {
+        throw new Error(`Case failed detective reference integrity validation: ${validation.errors.join('; ')}`);
+      }
+
+      // Check scenario diversity against user's recent cases
+      if (recentCases.length > 0) {
+        const similarity = calculateScenarioSimilarity(sanitized, recentCases);
+        if (similarity > 0.75) {
+          throw new Error(
+            `Generated case is too similar to recent cases (similarity score: ${similarity.toFixed(2)}). Must use a different culprit and evidence mechanic.`
+          );
+        }
+      }
+
+      // Generation succeeded with high quality & diversity
+      return sanitized;
+    } catch (err) {
+      lastError = err;
+      correctiveFeedback = err.message;
+      console.warn(`[GeminiService] Attempt ${attempt} failed: ${err.message}`);
+
+      // If error is an unrecoverable auth/quota/not-found error, don't loop
+      const msg = err.message || '';
+      if (
+        msg.includes('API_KEY_INVALID') ||
+        msg.includes('PERMISSION_DENIED') ||
+        msg.includes('RESOURCE_EXHAUSTED') ||
+        msg.includes('quota')
+      ) {
+        break;
+      }
+    }
+  }
+
+  // All bounded attempts exhausted: throw user-facing error.
+  // NEVER silently return a hardcoded case when the user requested an AI mystery!
+  throw new AiGenerationError(
+    `Failed to generate a genuine AI mystery case: ${lastError?.message || 'Model unavailable'}. Please try again.`,
+    lastError,
+    502
+  );
 }

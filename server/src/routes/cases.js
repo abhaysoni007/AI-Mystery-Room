@@ -4,13 +4,15 @@ import { z } from 'zod';
 import { Case } from '../models/Case.js';
 import { InvestigationProgress } from '../models/InvestigationProgress.js';
 import { Accusation } from '../models/Accusation.js';
-import { generateMysteryCase } from '../services/geminiService.js';
+import { generateMysteryCase, AiGenerationError } from '../services/geminiService.js';
 import { serializePublicCase, serializePublicCaseSummary } from '../serializers/caseSerializer.js';
 import { sendSuccess, sendError } from '../utils/response.js';
-import { optionalAuth } from '../middleware/authMiddleware.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const casesRouter = Router();
-casesRouter.use(optionalAuth);
+
+// Enforce strict authentication on all case operations
+casesRouter.use(requireAuth);
 
 const createCaseSchema = z.object({
   scenario: z
@@ -34,15 +36,15 @@ const createCaseSchema = z.object({
     .default('theft'),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional().default('medium'),
   length: z.enum(['short', 'standard', 'extended']).optional().default('standard'),
+  forceFallback: z.boolean().optional().default(false),
 });
 
-// GET /api/v1/cases - List cases
+// GET /api/v1/cases - List authenticated user's private cases
 casesRouter.get('/', async (req, res, next) => {
   try {
-    const userId = req.user ? req.user._id.toString() : 'user_anonymous';
-    const filter = req.user
-      ? { $or: [{ ownerId: userId }, { ownerId: 'user_anonymous' }] }
-      : { ownerId: 'user_anonymous' };
+    const userId = req.user._id.toString();
+    const filter = { ownerId: userId };
+
     if (req.query.status) {
       filter.status = req.query.status;
     }
@@ -58,7 +60,7 @@ casesRouter.get('/', async (req, res, next) => {
   }
 });
 
-// POST /api/v1/cases - Create new mystery case
+// POST /api/v1/cases - Create new mystery case for authenticated user
 casesRouter.post('/', async (req, res, next) => {
   try {
     const validation = createCaseSchema.safeParse(req.body);
@@ -71,18 +73,37 @@ casesRouter.post('/', async (req, res, next) => {
       });
     }
 
-    const { scenario, category, difficulty, length } = validation.data;
+    const { scenario, category, difficulty, length, forceFallback } = validation.data;
+    const userId = req.user._id.toString();
 
-    // Generate complete clue-corroborated mystery using Gemini engine (with solver fallback)
-    const generatedCase = await generateMysteryCase({
-      scenario,
-      category,
-      difficulty,
-      length,
-    });
+    // Query user's recent cases to inject diversity context
+    const recentCases = await Case.find({ ownerId: userId })
+      .sort({ createdAt: -1 })
+      .limit(5);
 
-    const userId = req.user ? req.user._id.toString() : 'user_anonymous';
+    // Generate genuine AI mystery case
+    let generatedCase;
+    try {
+      generatedCase = await generateMysteryCase({
+        scenario,
+        category,
+        difficulty,
+        length,
+        recentCases,
+        forceFallback,
+      });
+    } catch (aiErr) {
+      if (aiErr instanceof AiGenerationError) {
+        return sendError(res, {
+          code: 'AI_GENERATION_FAILED',
+          message: aiErr.message,
+          statusCode: aiErr.statusCode || 502,
+        });
+      }
+      throw aiErr;
+    }
 
+    // Authoritative ownership binding (never trust client payload for ownerId/userId)
     const newCasePayload = {
       ...generatedCase,
       prompt: scenario,
@@ -113,10 +134,12 @@ casesRouter.post('/', async (req, res, next) => {
   }
 });
 
-// GET /api/v1/cases/:caseId - Get public case dossier
+// GET /api/v1/cases/:caseId - Get public case dossier (owner-scoped)
 casesRouter.get('/:caseId', async (req, res, next) => {
   try {
     const { caseId } = req.params;
+    const userId = req.user._id.toString();
+
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -125,7 +148,8 @@ casesRouter.get('/:caseId', async (req, res, next) => {
       });
     }
 
-    const caseDoc = await Case.findById(caseId);
+    // Scope query strictly by case ID and authenticated owner ID
+    const caseDoc = await Case.findOne({ _id: caseId, ownerId: userId });
     if (!caseDoc) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -143,10 +167,12 @@ casesRouter.get('/:caseId', async (req, res, next) => {
   }
 });
 
-// DELETE /api/v1/cases/:caseId - Delete case and progress
+// DELETE /api/v1/cases/:caseId - Delete case and progress (owner-scoped)
 casesRouter.delete('/:caseId', async (req, res, next) => {
   try {
     const { caseId } = req.params;
+    const userId = req.user._id.toString();
+
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -155,7 +181,8 @@ casesRouter.delete('/:caseId', async (req, res, next) => {
       });
     }
 
-    const deleted = await Case.findByIdAndDelete(caseId);
+    // Strictly scope delete by ownerId
+    const deleted = await Case.findOneAndDelete({ _id: caseId, ownerId: userId });
     if (!deleted) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -164,8 +191,8 @@ casesRouter.delete('/:caseId', async (req, res, next) => {
       });
     }
 
-    await InvestigationProgress.deleteMany({ caseId });
-    await Accusation.deleteMany({ caseId });
+    await InvestigationProgress.deleteMany({ caseId, userId });
+    await Accusation.deleteMany({ caseId, userId });
 
     return sendSuccess(res, {
       data: null,
@@ -176,10 +203,12 @@ casesRouter.delete('/:caseId', async (req, res, next) => {
   }
 });
 
-// GET /api/v1/cases/:caseId/progress - Get investigation progress
+// GET /api/v1/cases/:caseId/progress - Get investigation progress (owner-scoped)
 casesRouter.get('/:caseId/progress', async (req, res, next) => {
   try {
     const { caseId } = req.params;
+    const userId = req.user._id.toString();
+
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -188,11 +217,21 @@ casesRouter.get('/:caseId/progress', async (req, res, next) => {
       });
     }
 
-    let progress = await InvestigationProgress.findOne({ caseId, userId: 'user_anonymous' });
+    // Verify authenticated user owns the parent case
+    const caseDoc = await Case.findOne({ _id: caseId, ownerId: userId });
+    if (!caseDoc) {
+      return sendError(res, {
+        code: 'CASE_NOT_FOUND',
+        message: 'Case dossier not found',
+        statusCode: 404,
+      });
+    }
+
+    let progress = await InvestigationProgress.findOne({ caseId, userId });
     if (!progress) {
       progress = await InvestigationProgress.create({
         caseId,
-        userId: 'user_anonymous',
+        userId,
         openedEvidenceIds: [],
         notes: '',
         status: 'active',
@@ -207,10 +246,12 @@ casesRouter.get('/:caseId/progress', async (req, res, next) => {
   }
 });
 
-// PATCH /api/v1/cases/:caseId/progress - Update progress & notes
+// PATCH /api/v1/cases/:caseId/progress - Update progress & notes (owner-scoped)
 casesRouter.patch('/:caseId/progress', async (req, res, next) => {
   try {
     const { caseId } = req.params;
+    const userId = req.user._id.toString();
+
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -219,11 +260,21 @@ casesRouter.patch('/:caseId/progress', async (req, res, next) => {
       });
     }
 
-    let progress = await InvestigationProgress.findOne({ caseId, userId: 'user_anonymous' });
+    // Verify authenticated user owns the parent case
+    const caseDoc = await Case.findOne({ _id: caseId, ownerId: userId });
+    if (!caseDoc) {
+      return sendError(res, {
+        code: 'CASE_NOT_FOUND',
+        message: 'Case dossier not found',
+        statusCode: 404,
+      });
+    }
+
+    let progress = await InvestigationProgress.findOne({ caseId, userId });
     if (!progress) {
       progress = new InvestigationProgress({
         caseId,
-        userId: 'user_anonymous',
+        userId,
         openedEvidenceIds: [],
         notes: '',
         status: 'active',
@@ -252,10 +303,12 @@ casesRouter.patch('/:caseId/progress', async (req, res, next) => {
   }
 });
 
-// POST /api/v1/cases/:caseId/accusations - Server-authoritative accusation evaluation
+// POST /api/v1/cases/:caseId/accusations - Server-authoritative accusation evaluation (owner-scoped)
 casesRouter.post('/:caseId/accusations', async (req, res, next) => {
   try {
     const { caseId } = req.params;
+    const userId = req.user._id.toString();
+
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -264,7 +317,8 @@ casesRouter.post('/:caseId/accusations', async (req, res, next) => {
       });
     }
 
-    const caseDoc = await Case.findById(caseId);
+    // Verify authenticated user owns the parent case
+    const caseDoc = await Case.findOne({ _id: caseId, ownerId: userId });
     if (!caseDoc) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -306,7 +360,7 @@ casesRouter.post('/:caseId/accusations', async (req, res, next) => {
 
     const accusation = await Accusation.create({
       caseId,
-      userId: 'user_anonymous',
+      userId,
       selectedSuspectId: suspectId,
       reasoning: reasoning || '',
       isCorrect,
@@ -321,7 +375,7 @@ casesRouter.post('/:caseId/accusations', async (req, res, next) => {
 
     // Finalize progress
     await InvestigationProgress.updateOne(
-      { caseId, userId: 'user_anonymous' },
+      { caseId, userId },
       { $set: { status: 'completed', completedAt: submittedAt, lastActivityAt: submittedAt } },
       { upsert: true }
     );
@@ -346,10 +400,12 @@ casesRouter.post('/:caseId/accusations', async (req, res, next) => {
   }
 });
 
-// GET /api/v1/cases/:caseId/result - Authorized solution reveal
+// GET /api/v1/cases/:caseId/result - Authorized solution reveal (owner-scoped)
 casesRouter.get('/:caseId/result', async (req, res, next) => {
   try {
     const { caseId } = req.params;
+    const userId = req.user._id.toString();
+
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -358,7 +414,8 @@ casesRouter.get('/:caseId/result', async (req, res, next) => {
       });
     }
 
-    const caseDoc = await Case.findById(caseId);
+    // Verify authenticated user owns the parent case
+    const caseDoc = await Case.findOne({ _id: caseId, ownerId: userId });
     if (!caseDoc) {
       return sendError(res, {
         code: 'CASE_NOT_FOUND',
@@ -376,7 +433,7 @@ casesRouter.get('/:caseId/result', async (req, res, next) => {
       });
     }
 
-    const accusation = await Accusation.findOne({ caseId }).sort({ submittedAt: -1 });
+    const accusation = await Accusation.findOne({ caseId, userId }).sort({ submittedAt: -1 });
 
     const culpritSuspect = caseDoc.suspects.find((s) => s.id === caseDoc.solution.culpritId);
     const culpritName = caseDoc.solution.culpritName || culpritSuspect?.name || 'Culprit';

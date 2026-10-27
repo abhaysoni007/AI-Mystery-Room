@@ -8,9 +8,12 @@ import { SampleCaseCard } from '../components/landing/SampleCaseCard';
 import { Compass, Search, FolderArchive, ArrowRight } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
 
+import { SAMPLE_CASE } from '../data/sampleCase';
+
 export function LandingPage() {
   const navigate = useNavigate();
   const { currentCase } = useInvestigation();
+  const activeCase = currentCase || SAMPLE_CASE;
 
   return (
     <div className="space-y-0">
@@ -75,11 +78,11 @@ export function LandingPage() {
                 </div>
 
                 <h3 className="font-display font-extrabold text-3xl mb-2 text-ink">
-                  {currentCase.title}
+                  {activeCase.title}
                 </h3>
 
                 <p className="text-sm font-medium text-ink leading-relaxed mb-6">
-                  {currentCase.summary}
+                  {activeCase.summary}
                 </p>
 
                 <div className="space-y-3 font-mono text-xs">

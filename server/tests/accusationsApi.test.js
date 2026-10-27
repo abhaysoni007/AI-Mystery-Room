@@ -2,69 +2,76 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
 import { connectTestDb, closeTestDb } from './setup.js';
+import { User } from '../src/models/User.js';
 import { Case } from '../src/models/Case.js';
 import { InvestigationProgress } from '../src/models/InvestigationProgress.js';
 import { Accusation } from '../src/models/Accusation.js';
 
-const sampleCaseSeed = {
-  title: 'The Gallery After Midnight',
-  prompt: 'A renaissance canvas vanished from the vault during a power blackout.',
-  category: 'theft',
-  difficulty: 'medium',
-  length: 'standard',
-  status: 'active',
-  summary: 'A renaissance canvas vanished from the vault during a power blackout.',
-  incident: {
-    description: 'Power grid severed at circuit breaker.',
-    location: 'Vanguard Modern Gallery, North Vault Room 3B',
-    timeDescription: 'Between 21:30 and 21:37',
-  },
-  suspects: [
-    {
-      id: 'suspect_01',
-      name: 'Alex Morgan',
-      occupation: 'Chief Curator',
-      relationship: 'Keyholder',
-      summary: 'Senior curator.',
-      publicStatement: 'I was in the VIP lounge.',
-      alibiPublicText: 'Claims to have stayed in lounge.',
+describe('Accusation & Authorized Result API', () => {
+  let authToken;
+  let testUserId;
+
+  const buildSampleCase = (ownerId, overrides = {}) => ({
+    ownerId,
+    title: 'The Gallery After Midnight',
+    prompt: 'A renaissance canvas vanished from the vault during a power blackout.',
+    category: 'theft',
+    difficulty: 'medium',
+    length: 'standard',
+    status: 'active',
+    summary: 'A renaissance canvas vanished from the vault during a power blackout.',
+    incident: {
+      description: 'Power grid severed at circuit breaker.',
+      location: 'Vanguard Modern Gallery, North Vault Room 3B',
+      timeDescription: 'Between 21:30 and 21:37',
     },
-    {
-      id: 'suspect_02',
-      name: 'Julian Ross',
-      occupation: 'Master Restorer',
-      relationship: 'Conservator',
-      summary: 'Restorer with laser tools.',
-      publicStatement: 'I left at 20:45.',
-      alibiPublicText: 'Claims he departed at 20:45.',
-    },
-  ],
-  timeline: [],
-  evidence: [
-    {
-      id: 'evidence_01',
-      type: 'document',
-      title: 'Keycard Access Log',
-      description: 'Audit log exported from server.',
-    },
-  ],
-  solution: {
-    culpritId: 'suspect_02',
-    culpritName: 'Julian Ross',
-    motive: 'Personal debt.',
-    method: 'Breaker box bypass.',
-    rationale: 'Access log conflicts with train schedule.',
-    decisiveEvidenceIds: ['evidence_01'],
-    redHerrings: [
+    suspects: [
       {
-        suspectId: 'suspect_01',
-        explanation: 'Alex Morgan was in the VIP lounge with patrons.',
+        id: 'suspect_01',
+        name: 'Alex Morgan',
+        occupation: 'Chief Curator',
+        relationship: 'Keyholder',
+        summary: 'Senior curator.',
+        publicStatement: 'I was in the VIP lounge.',
+        alibiPublicText: 'Claims to have stayed in lounge.',
+      },
+      {
+        id: 'suspect_02',
+        name: 'Julian Ross',
+        occupation: 'Master Restorer',
+        relationship: 'Conservator',
+        summary: 'Restorer with laser tools.',
+        publicStatement: 'I left at 20:45.',
+        alibiPublicText: 'Claims he departed at 20:45.',
       },
     ],
-  },
-};
+    timeline: [],
+    evidence: [
+      {
+        id: 'evidence_01',
+        type: 'document',
+        title: 'Keycard Access Log',
+        description: 'Audit log exported from server.',
+      },
+    ],
+    solution: {
+      culpritId: 'suspect_02',
+      culpritName: 'Julian Ross',
+      motive: 'Personal debt.',
+      method: 'Breaker box bypass.',
+      rationale: 'Access log conflicts with train schedule.',
+      decisiveEvidenceIds: ['evidence_01'],
+      redHerrings: [
+        {
+          suspectId: 'suspect_01',
+          evidenceId: 'evidence_01',
+          explanation: 'Alex stayed in the VIP lounge.',
+        },
+      ],
+    },
+    ...overrides,
+  });
 
-describe('Accusation & Authorized Result API', () => {
   beforeAll(async () => {
     await connectTestDb();
   }, 120000);
@@ -74,16 +81,26 @@ describe('Accusation & Authorized Result API', () => {
   });
 
   beforeEach(async () => {
+    await User.deleteMany({});
     await Case.deleteMany({});
     await InvestigationProgress.deleteMany({});
     await Accusation.deleteMany({});
+
+    const signup = await request(app).post('/api/v1/auth/signup').send({
+      username: 'accuser_detective',
+      password: 'Password123!',
+      name: 'Detective Vance',
+    });
+    authToken = signup.body.data.token;
+    testUserId = signup.body.data.user.id;
   });
 
   it('rejects accusation when suspectId is missing', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
 
     const res = await request(app)
       .post(`/api/v1/cases/${created._id}/accusations`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
     expect(res.status).toBe(400);
@@ -92,10 +109,11 @@ describe('Accusation & Authorized Result API', () => {
   });
 
   it('returns 404 when accused suspect does not exist in the case', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
 
     const res = await request(app)
       .post(`/api/v1/cases/${created._id}/accusations`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send({ suspectId: 'suspect_nonexistent' });
 
     expect(res.status).toBe(404);
@@ -104,15 +122,16 @@ describe('Accusation & Authorized Result API', () => {
   });
 
   it('evaluates correct accusation deterministically, records score 100, and completes case', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
     await InvestigationProgress.create({
       caseId: created._id,
-      userId: 'user_anonymous',
+      userId: testUserId,
       openedEvidenceIds: ['evidence_01'],
     });
 
     const res = await request(app)
       .post(`/api/v1/cases/${created._id}/accusations`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send({
         suspectId: 'suspect_02', // Julian Ross is canonical culprit
         reasoning: 'Keycard access logs at 21:29 prove presence in vault tunnel.',
@@ -129,15 +148,16 @@ describe('Accusation & Authorized Result API', () => {
     expect(updatedCase.status).toBe('completed');
     expect(updatedCase.completedAt).not.toBeNull();
 
-    const updatedProgress = await InvestigationProgress.findOne({ caseId: created._id });
+    const updatedProgress = await InvestigationProgress.findOne({ caseId: created._id, userId: testUserId });
     expect(updatedProgress.status).toBe('completed');
   });
 
   it('evaluates incorrect accusation deterministically with score 0 and completes case', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
 
     const res = await request(app)
       .post(`/api/v1/cases/${created._id}/accusations`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send({
         suspectId: 'suspect_01', // Alex Morgan is innocent
         reasoning: 'He was the curator.',
@@ -150,13 +170,15 @@ describe('Accusation & Authorized Result API', () => {
   });
 
   it('rejects duplicate accusation when case is already completed', async () => {
-    const created = await Case.create({
-      ...sampleCaseSeed,
-      status: 'completed',
-    });
+    const created = await Case.create(
+      buildSampleCase(testUserId, {
+        status: 'completed',
+      })
+    );
 
     const res = await request(app)
       .post(`/api/v1/cases/${created._id}/accusations`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send({ suspectId: 'suspect_02' });
 
     expect(res.status).toBe(409);
@@ -165,9 +187,12 @@ describe('Accusation & Authorized Result API', () => {
   });
 
   it('GET /api/v1/cases/:caseId/result blocks access before case completion (security boundary)', async () => {
-    const created = await Case.create(sampleCaseSeed); // status: 'active'
+    const created = await Case.create(buildSampleCase(testUserId)); // status: 'active'
 
-    const res = await request(app).get(`/api/v1/cases/${created._id}/result`);
+    const res = await request(app)
+      .get(`/api/v1/cases/${created._id}/result`)
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('CASE_NOT_COMPLETED');
@@ -175,22 +200,26 @@ describe('Accusation & Authorized Result API', () => {
   });
 
   it('GET /api/v1/cases/:caseId/result reveals canonical culprit, motive, and decisive clues on completed case', async () => {
-    const created = await Case.create({
-      ...sampleCaseSeed,
-      status: 'completed',
-      completedAt: new Date(),
-    });
+    const created = await Case.create(
+      buildSampleCase(testUserId, {
+        status: 'completed',
+        completedAt: new Date(),
+      })
+    );
 
     await Accusation.create({
       caseId: created._id,
-      userId: 'user_anonymous',
+      userId: testUserId,
       selectedSuspectId: 'suspect_02',
       reasoning: 'Keycard access contradiction.',
       isCorrect: true,
       score: 100,
     });
 
-    const res = await request(app).get(`/api/v1/cases/${created._id}/result`);
+    const res = await request(app)
+      .get(`/api/v1/cases/${created._id}/result`)
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
 

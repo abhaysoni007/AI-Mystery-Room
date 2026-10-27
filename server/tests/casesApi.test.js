@@ -2,78 +2,83 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
 import { connectTestDb, closeTestDb } from './setup.js';
+import { User } from '../src/models/User.js';
 import { Case } from '../src/models/Case.js';
 import { InvestigationProgress } from '../src/models/InvestigationProgress.js';
 
-const sampleCaseSeed = {
-  title: 'The Gallery After Midnight',
-  prompt: 'A renaissance canvas vanished from the vault during a power blackout.',
-  category: 'theft',
-  difficulty: 'medium',
-  length: 'standard',
-  status: 'active',
-  summary: 'A renaissance canvas vanished from the vault during a power blackout.',
-  incident: {
-    description: 'Power grid severed at circuit breaker.',
-    location: 'Vanguard Modern Gallery, North Vault Room 3B',
-    timeDescription: 'Between 21:30 and 21:37',
-  },
-  suspects: [
-    {
-      id: 'suspect_01',
-      name: 'Alex Morgan',
-      occupation: 'Chief Curator',
-      relationship: 'Keyholder',
-      summary: 'Senior curator.',
-      publicStatement: 'I was in the VIP lounge.',
-      alibiPublicText: 'Claims to have stayed in lounge.',
-      relatedEvidenceIds: ['evidence_01'],
-      relatedEventIds: ['event_01'],
-    },
-    {
-      id: 'suspect_02',
-      name: 'Julian Ross',
-      occupation: 'Master Restorer',
-      relationship: 'Conservator',
-      summary: 'Restorer with laser cutter.',
-      publicStatement: 'I left at 20:45.',
-      alibiPublicText: 'Claims he departed at 20:45.',
-      relatedEvidenceIds: ['evidence_01'],
-      relatedEventIds: ['event_01'],
-    },
-  ],
-  timeline: [
-    {
-      id: 'event_01',
-      timeDescription: '20:00',
-      description: 'Gala opens in grand atrium.',
-      relatedSuspectIds: ['suspect_01'],
-      relatedEvidenceIds: [],
-    },
-  ],
-  evidence: [
-    {
-      id: 'evidence_01',
-      type: 'document',
-      title: 'Keycard Access Log',
-      description: 'Audit log exported from server.',
-      content: { records: [] },
-      relatedSuspectIds: ['suspect_02'],
-      relatedEventIds: ['event_01'],
-    },
-  ],
-  solution: {
-    culpritId: 'suspect_02',
-    culpritName: 'Julian Ross',
-    motive: 'Personal debt.',
-    method: 'Breaker box bypass.',
-    rationale: 'Access log conflicts with train schedule.',
-    decisiveEvidenceIds: ['evidence_01'],
-    redHerrings: [],
-  },
-};
-
 describe('Cases & Progress REST API', () => {
+  let authToken;
+  let testUserId;
+
+  const buildSampleCase = (ownerId) => ({
+    ownerId,
+    title: 'The Gallery After Midnight',
+    prompt: 'A renaissance canvas vanished from the vault during a power blackout.',
+    category: 'theft',
+    difficulty: 'medium',
+    length: 'standard',
+    status: 'active',
+    summary: 'A renaissance canvas vanished from the vault during a power blackout.',
+    incident: {
+      description: 'Power grid severed at circuit breaker.',
+      location: 'Vanguard Modern Gallery, North Vault Room 3B',
+      timeDescription: 'Between 21:30 and 21:37',
+    },
+    suspects: [
+      {
+        id: 'suspect_01',
+        name: 'Alex Morgan',
+        occupation: 'Chief Curator',
+        relationship: 'Keyholder',
+        summary: 'Senior curator.',
+        publicStatement: 'I was in the VIP lounge.',
+        alibiPublicText: 'Claims to have stayed in lounge.',
+        relatedEvidenceIds: ['evidence_01'],
+        relatedEventIds: ['event_01'],
+      },
+      {
+        id: 'suspect_02',
+        name: 'Julian Ross',
+        occupation: 'Master Restorer',
+        relationship: 'Conservator',
+        summary: 'Restorer with laser cutter.',
+        publicStatement: 'I left at 20:45.',
+        alibiPublicText: 'Claims he departed at 20:45.',
+        relatedEvidenceIds: ['evidence_01'],
+        relatedEventIds: ['event_01'],
+      },
+    ],
+    timeline: [
+      {
+        id: 'event_01',
+        timeDescription: '20:00',
+        description: 'Gala opens in grand atrium.',
+        relatedSuspectIds: ['suspect_01'],
+        relatedEvidenceIds: [],
+      },
+    ],
+    evidence: [
+      {
+        id: 'evidence_01',
+        type: 'document',
+        title: 'Keycard Access Log',
+        description: 'Audit log exported from server.',
+        content: { records: [] },
+        relatedSuspectIds: ['suspect_02'],
+        relatedEventIds: ['event_01'],
+      },
+    ],
+    solution: {
+      culpritId: 'suspect_02',
+      culpritName: 'Julian Ross',
+      motive: 'Personal debt.',
+      method: 'Breaker box bypass.',
+      rationale: 'Access log conflicts with train schedule.',
+      decisiveEvidenceIds: ['evidence_01'],
+      redHerrings: [],
+    },
+  });
+
   beforeAll(async () => {
     await connectTestDb();
   }, 120000);
@@ -83,14 +88,26 @@ describe('Cases & Progress REST API', () => {
   });
 
   beforeEach(async () => {
+    await User.deleteMany({});
     await Case.deleteMany({});
     await InvestigationProgress.deleteMany({});
+
+    const signup = await request(app).post('/api/v1/auth/signup').send({
+      username: 'investigator_test',
+      password: 'Password123!',
+      name: 'Test Detective',
+    });
+    authToken = signup.body.data.token;
+    testUserId = signup.body.data.user.id;
   });
 
-  it('GET /api/v1/cases returns list of case summaries', async () => {
-    await Case.create(sampleCaseSeed);
+  it('GET /api/v1/cases returns list of case summaries for authenticated user', async () => {
+    await Case.create(buildSampleCase(testUserId));
 
-    const res = await request(app).get('/api/v1/cases');
+    const res = await request(app)
+      .get('/api/v1/cases')
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.cases).toHaveLength(1);
@@ -101,6 +118,7 @@ describe('Cases & Progress REST API', () => {
   it('POST /api/v1/cases validates scenario length and creates new case', async () => {
     const invalidRes = await request(app)
       .post('/api/v1/cases')
+      .set('Authorization', `Bearer ${authToken}`)
       .send({ scenario: 'Too short' });
 
     expect(invalidRes.status).toBe(400);
@@ -109,11 +127,13 @@ describe('Cases & Progress REST API', () => {
 
     const validRes = await request(app)
       .post('/api/v1/cases')
+      .set('Authorization', `Bearer ${authToken}`)
       .send({
         scenario: 'A rare jewel was stolen from a private collector during an exhibition blackout.',
         category: 'theft',
         difficulty: 'medium',
         length: 'standard',
+        forceFallback: true,
       });
 
     expect(validRes.status).toBe(201);
@@ -124,20 +144,24 @@ describe('Cases & Progress REST API', () => {
     const createdId = validRes.body.data.case.id;
     const dbCase = await Case.findById(createdId);
     expect(dbCase).not.toBeNull();
+    expect(dbCase.ownerId).toBe(testUserId);
     expect(dbCase.suspects.length).toBeGreaterThanOrEqual(2);
     expect(dbCase.evidence.length).toBeGreaterThanOrEqual(3);
     expect(dbCase.timeline.length).toBeGreaterThanOrEqual(2);
     expect(dbCase.solution.culpritId).toBeTruthy();
 
-    const dbProgress = await InvestigationProgress.findOne({ caseId: createdId });
+    const dbProgress = await InvestigationProgress.findOne({ caseId: createdId, userId: testUserId });
     expect(dbProgress).not.toBeNull();
     expect(dbProgress.status).toBe('active');
   });
 
   it('GET /api/v1/cases/:caseId returns full public dossier without private solution', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
 
-    const res = await request(app).get(`/api/v1/cases/${created._id}`);
+    const res = await request(app)
+      .get(`/api/v1/cases/${created._id}`)
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.case.id).toBe(created._id.toString());
@@ -149,22 +173,28 @@ describe('Cases & Progress REST API', () => {
 
   it('GET /api/v1/cases/:caseId returns 404 for non-existent case', async () => {
     const fakeId = '507f1f77bcf86cd799439011';
-    const res = await request(app).get(`/api/v1/cases/${fakeId}`);
+    const res = await request(app)
+      .get(`/api/v1/cases/${fakeId}`)
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('CASE_NOT_FOUND');
   });
 
   it('DELETE /api/v1/cases/:caseId removes case and associated progress', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
     await InvestigationProgress.create({
       caseId: created._id,
-      userId: 'user_anonymous',
+      userId: testUserId,
       openedEvidenceIds: ['evidence_01'],
       notes: 'Notes to be wiped.',
     });
 
-    const res = await request(app).delete(`/api/v1/cases/${created._id}`);
+    const res = await request(app)
+      .delete(`/api/v1/cases/${created._id}`)
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
 
@@ -175,9 +205,12 @@ describe('Cases & Progress REST API', () => {
   });
 
   it('GET /api/v1/cases/:caseId/progress returns existing or initialized progress', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
 
-    const res = await request(app).get(`/api/v1/cases/${created._id}/progress`);
+    const res = await request(app)
+      .get(`/api/v1/cases/${created._id}/progress`)
+      .set('Authorization', `Bearer ${authToken}`);
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.progress).toHaveProperty('openedEvidenceIds');
@@ -185,10 +218,11 @@ describe('Cases & Progress REST API', () => {
   });
 
   it('PATCH /api/v1/cases/:caseId/progress updates opened evidence and notes', async () => {
-    const created = await Case.create(sampleCaseSeed);
+    const created = await Case.create(buildSampleCase(testUserId));
 
     const res = await request(app)
       .patch(`/api/v1/cases/${created._id}/progress`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send({
         openedEvidenceId: 'evidence_01',
         notes: 'Julian Ross keycard record was noted.',
