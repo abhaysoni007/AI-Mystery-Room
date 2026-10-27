@@ -16,8 +16,19 @@ const envSchema = z.object({
   OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
 });
 
+const rawGeminiModel = process.env.GEMINI_MODEL;
+const sanitizedGeminiModel =
+  !rawGeminiModel ||
+  rawGeminiModel === 'gemini-1.5-flash' ||
+  rawGeminiModel === 'gemini-2.0-flash' ||
+  rawGeminiModel === 'gemini-2.5-flash' ||
+  rawGeminiModel === 'models/gemini-1.5-flash'
+    ? 'gemini-3.8-flash'
+    : rawGeminiModel;
+
 const rawEnv = {
   ...process.env,
+  GEMINI_MODEL: sanitizedGeminiModel,
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API || '',
   OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free',
 };

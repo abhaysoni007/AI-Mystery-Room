@@ -198,7 +198,14 @@ export async function generateMysteryCase({
 
   // 1. Attempt Primary Generation via Google Gemini
   if (geminiApiKey || modelClient) {
-    const modelName = env.GEMINI_MODEL || 'gemini-3.8-flash';
+    let modelName = env.GEMINI_MODEL || 'gemini-3.8-flash';
+    if (
+      modelName.includes('gemini-1.5') ||
+      modelName.includes('gemini-2.0') ||
+      modelName.includes('gemini-2.5')
+    ) {
+      modelName = 'gemini-3.8-flash';
+    }
     const ai = modelClient || new GoogleGenAI({ apiKey: geminiApiKey });
 
     const maxAttempts = 2;
@@ -266,7 +273,10 @@ export async function generateMysteryCase({
           msg.includes('API_KEY_INVALID') ||
           msg.includes('PERMISSION_DENIED') ||
           msg.includes('RESOURCE_EXHAUSTED') ||
-          msg.includes('quota')
+          msg.includes('quota') ||
+          msg.includes('NOT_FOUND') ||
+          msg.includes('not found') ||
+          msg.includes('no longer available')
         ) {
           break;
         }
