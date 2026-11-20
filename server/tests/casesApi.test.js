@@ -336,4 +336,30 @@ describe('Cases & Progress REST API', () => {
     expect((await request(app).put(url).set('Authorization', `Bearer ${authToken}`).send({ board, revision: 1 })).status).toBe(400);
     expect((await request(app).put(url).send({ board, revision: 1 })).status).toBe(401);
   });
+
+  it.each([
+    ['corporate', 'corporate_espionage'],
+    ['general', 'other'],
+    ['corporate_espionage', 'corporate_espionage'],
+    ['other', 'other'],
+  ])('normalizes category %s to %s before creating a case', async (input, expected) => {
+    const res = await request(app).post('/api/v1/cases')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        category: input, difficulty: 'medium', length: 'standard',
+        scenario: 'An AI startup chief scientist is found locked in a cryo-chamber minutes before the company IPO pitch.',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.data.case.category).toBe(expected);
+    const saved = await Case.findById(res.body.data.case.id);
+    expect(saved.category).toBe(expected);
+  });
+
+  it('rejects unsupported categories before generation', async () => {
+    const res = await request(app).post('/api/v1/cases')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ category: 'unsupported', scenario: 'A painting disappears from a gallery during a blackout.' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });

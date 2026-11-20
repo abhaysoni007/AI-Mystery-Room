@@ -1642,3 +1642,8 @@ This document defines persistence requirements, not endpoint names. Do not inven
 ## Evidence board implementation ? 2026-11-20
 
 InvestigationProgress now embeds board (cards and connections) plus boardRevision (default 0). Cards have id, kind (evidence/suspect/event/theory), optional refId, text <=2000, x 0..1180, y 0..1000. Maximum 80 cards and 160 connections; unique IDs and same-case references required. Connections use from/to card IDs and related/supports/contradicts labels. Board writes atomically increment the revision.
+
+
+### Case category compatibility fix ? 2026-11-20
+
+Creation normalizes legacy category aliases corporate ? corporate_espionage and general ? other before AI generation and persistence. New clients send canonical IDs. The validated category overrides provider category output when saving. Unsupported categories receive 400 VALIDATION_ERROR.

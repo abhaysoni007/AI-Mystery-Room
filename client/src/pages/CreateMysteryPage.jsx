@@ -17,9 +17,9 @@ const CATEGORIES = [
   { id: 'theft', name: 'Art & Asset Theft' },
   { id: 'murder', name: 'Fictional Homicide' },
   { id: 'disappearance', name: 'Vanishing & Disappearance' },
-  { id: 'corporate', name: 'Corporate Espionage' },
+  { id: 'corporate_espionage', name: 'Corporate Espionage' },
   { id: 'cybercrime', name: 'Cyber Intrusion & Heist' },
-  { id: 'general', name: 'General Whodunnit' },
+  { id: 'other', name: 'General Whodunnit' },
 ];
 
 const DIFFICULTIES = [

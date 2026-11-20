@@ -35,7 +35,8 @@ const createCaseSchema = z.object({
       'other',
     ])
     .optional()
-    .default('theft'),
+    .default('theft')
+    .transform((category) => ({ corporate: 'corporate_espionage', general: 'other' }[category] || category)),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional().default('medium'),
   length: z.enum(['short', 'standard', 'extended']).optional().default('standard'),
 });
@@ -106,6 +107,8 @@ casesRouter.post('/', async (req, res, next) => {
     // Authoritative ownership binding (never trust client payload for ownerId/userId)
     const newCasePayload = {
       ...generatedCase,
+      // Persist the validated selection, never an unchecked category from AI output.
+      category,
       prompt: scenario,
       ownerId: userId,
       status: 'active',

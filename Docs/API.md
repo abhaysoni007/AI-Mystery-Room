@@ -2359,3 +2359,8 @@ These are contract additions, not a claim that the endpoints already exist. Insp
 ## Evidence board implementation ? 2026-11-20
 
 Implemented board contract: PUT /api/v1/cases/:caseId/board accepts {board: {cards, connections}, revision}. GET /cases/:caseId/progress returns board and boardRevision. Ownership required; malformed/cross-case references return 400, missing/foreign cases 404, stale revisions 409. Successful writes return {board, revision}. Last successful save wins only with a matching revision.
+
+
+### Case category compatibility fix ? 2026-11-20
+
+Creation normalizes legacy category aliases corporate ? corporate_espionage and general ? other before AI generation and persistence. New clients send canonical IDs. The validated category overrides provider category output when saving. Unsupported categories receive 400 VALIDATION_ERROR.
