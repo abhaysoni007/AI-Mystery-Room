@@ -97,7 +97,7 @@ export function DashboardPage() {
 
           <div className="bg-paper-light border-3 border-ink rounded-xl p-5 shadow-hard">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-mono text-xs font-bold text-ink/70 uppercase">SUCCESS RATE</span>
+              <span className="font-mono text-xs font-bold text-ink/70 uppercase">COMPLETION RATE</span>
               <Award className="w-5 h-5 text-neoBlue stroke-[2.5]" />
             </div>
             <div className="font-display font-extrabold text-3xl text-ink">{successRate}%</div>
@@ -105,7 +105,7 @@ export function DashboardPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center justify-between gap-4 border-b-2 border-ink pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-ink pb-4">
           <div className="flex items-center gap-2 sm:gap-3">
             {[
               { id: 'all', label: 'ALL', count: totalCases },
@@ -117,7 +117,7 @@ export function DashboardPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveFilter(tab.id)}
-                  className={`px-4 py-2 border-2 border-ink rounded-lg font-mono text-xs sm:text-sm font-bold transition-all ${
+                  className={`px-2 sm:px-4 py-2 border-2 border-ink rounded-lg font-mono text-xs sm:text-sm font-bold transition-all ${
                     isSelected
                       ? 'bg-ink text-white shadow-hard-xs'
                       : 'bg-paper-light text-ink hover:bg-paper'

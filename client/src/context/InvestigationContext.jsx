@@ -277,16 +277,19 @@ export function InvestigationProvider({ children }) {
 
   const createCase = useCallback(
     async ({ scenario, difficulty = 'medium', category = 'theft', length = 'standard' }) => {
-      const createdServerCase = await api.createCase({
+      const summary = await api.createCase({
         scenario,
         category,
         difficulty,
         length,
       });
 
-      if (!createdServerCase || !createdServerCase.id) {
+      if (!summary || !summary.id) {
         throw new Error('Case generation failed: Empty response received from server.');
       }
+
+      const createdServerCase = await api.getCase(summary.id);
+      if (!createdServerCase?.evidence) throw new Error('The case was created but its dossier could not be loaded. Open it from your dashboard.');
 
       setCases((prev) => [createdServerCase, ...prev.filter((c) => c.id !== createdServerCase.id)]);
       setCurrentCase(createdServerCase);

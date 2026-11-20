@@ -17,6 +17,8 @@ const investigationProgressSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    board: { type: mongoose.Schema.Types.Mixed, default: () => ({ cards: [], connections: [] }) },
+    boardRevision: { type: Number, default: 0 },
     notes: {
       type: String,
       default: '',

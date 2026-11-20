@@ -16,6 +16,7 @@ import { CaseOverviewView } from './pages/investigation/CaseOverviewView';
 import { SuspectsView } from './pages/investigation/SuspectsView';
 import { EvidenceView } from './pages/investigation/EvidenceView';
 import { TimelineView } from './pages/investigation/TimelineView';
+import { EvidenceBoardView } from './pages/investigation/EvidenceBoardView';
 import { NotesView } from './pages/investigation/NotesView';
 import { EvidenceViewerPage } from './pages/evidence/EvidenceViewerPage';
 import { AccusationPage } from './pages/AccusationPage';
@@ -80,6 +81,7 @@ export default function App() {
               <Route path="suspects" element={<SuspectsView />} />
               <Route path="evidence" element={<EvidenceView />} />
               <Route path="timeline" element={<TimelineView />} />
+              <Route path="board" element={<EvidenceBoardView />} />
               <Route path="notes" element={<NotesView />} />
             </Route>
 

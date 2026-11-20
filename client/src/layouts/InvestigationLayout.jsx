@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams, NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
+import { useParams, NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Gavel,
@@ -9,6 +9,7 @@ import {
   Clock,
   NotebookPen,
   ShieldAlert,
+  Network,
 } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
 import { Button } from '../components/ui/Button';
@@ -16,10 +17,12 @@ import { Button } from '../components/ui/Button';
 export function InvestigationLayout() {
   const { caseId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBoard = location.pathname.endsWith("/board");
   const { currentCase, selectCase, progress } = useInvestigation();
 
   useEffect(() => {
-    if (caseId && (!currentCase || currentCase.id !== caseId)) {
+    if (caseId && (!currentCase || currentCase.id !== caseId || !Array.isArray(currentCase.evidence))) {
       selectCase(caseId);
     }
   }, [caseId, currentCase, selectCase]);
@@ -62,6 +65,7 @@ export function InvestigationLayout() {
       icon: Clock,
       badge: activeCase.timeline?.length || 0,
     },
+    { to: `/case/${caseId}/board`, label: 'BOARD', icon: Network },
     {
       to: `/case/${caseId}/notes`,
       label: 'NOTES',
@@ -123,14 +127,14 @@ export function InvestigationLayout() {
               className="flex items-center gap-2"
             >
               <Gavel className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-extrabold tracking-wide">MAKE ACCUSATION</span>
+              <span className="font-extrabold tracking-wide"><span className="hidden sm:inline">MAKE </span>ACCUSATION</span>
             </Button>
           </div>
         </div>
       </header>
 
       {/* Main Workspace Body with Sidebar & Content */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className={`flex-1 flex ${isBoard ? "max-w-[1700px]" : "max-w-7xl"} w-full mx-auto`}>
         {/* Desktop Sidebar Rail */}
         <aside className="hidden md:block w-60 border-r-3 border-ink bg-paper p-4 shrink-0">
           <div className="sticky top-28 space-y-2">
@@ -181,7 +185,7 @@ export function InvestigationLayout() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center py-1 px-2 rounded-lg font-mono text-[10px] font-bold transition-all ${
+                `flex flex-col items-center justify-center py-1 px-1 rounded-lg font-mono text-[10px] font-bold transition-all ${
                   isActive ? 'bg-neoYellow border-2 border-ink text-ink shadow-hard-xs' : 'text-ink/80'
                 }`
               }

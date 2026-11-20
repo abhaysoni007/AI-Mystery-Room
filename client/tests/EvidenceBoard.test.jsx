@@ -1,0 +1,22 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { vi, it, expect } from 'vitest';
+import { EvidenceBoardView } from '../src/pages/investigation/EvidenceBoardView';
+import * as api from '../src/services/api';
+vi.mock('../src/services/api', () => ({ getProgress: vi.fn(), saveBoard: vi.fn() }));
+vi.mock('../src/context/InvestigationContext', () => ({ useInvestigation: () => ({ currentCase: { id: 'case1', evidence: [{ id: 'e1', title: 'Door log', description: 'Door opened at midnight' }], suspects: [], timeline: [] } }) }));
+it('pins evidence, connects a theory and saves the board', async () => {
+  api.getProgress.mockResolvedValue({ board: { cards: [], connections: [] }, boardRevision: 0 });
+  api.saveBoard.mockResolvedValue({ revision: 1 });
+  render(<MemoryRouter><EvidenceBoardView /></MemoryRouter>);
+  await screen.findByText('All changes saved');
+  fireEvent.click(screen.getByText('+ Pin to board').closest('button'));
+  fireEvent.change(screen.getByPlaceholderText('What could explain these clues?'), { target: { value: 'Someone had a key' } });
+  fireEvent.click(screen.getByText('Pin theory'));
+  const buttons = screen.getAllByText('Connect');
+  fireEvent.click(buttons[0]); fireEvent.click(buttons[1]);
+  fireEvent.click(screen.getByText('Save board'));
+  await waitFor(() => expect(api.saveBoard).toHaveBeenCalledWith('case1', expect.objectContaining({ cards: expect.arrayContaining([expect.objectContaining({ kind: 'theory', text: 'Someone had a key' })]), connections: [expect.objectContaining({ label: 'related' })] }), 0));
+  await screen.findByText('All changes saved');
+});

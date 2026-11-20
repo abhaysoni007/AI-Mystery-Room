@@ -48,9 +48,11 @@ export function EvidenceView() {
   const normalizeType = (t) => {
     if (!t) return 'other';
     const lower = t.toLowerCase();
+    if (lower === 'chat_log') return 'chat';
     if (lower === 'image' || lower === 'photo') return 'photo';
     if (lower === 'forensic' || lower === 'forensic_report') return 'forensic';
     if (lower === 'witness' || lower === 'witness_statement') return 'witness';
+    if (lower === 'access_log') return 'document';
     return lower;
   };
 
@@ -89,6 +91,7 @@ export function EvidenceView() {
         </p>
       </div>
 
+      <button onClick={() => navigate(`/case/${caseId}/board`)} className="text-sm font-bold underline underline-offset-4">Connect these clues on your evidence board ?</button>
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b-2 border-ink pb-4">
         {filterTabs.map((tab) => {

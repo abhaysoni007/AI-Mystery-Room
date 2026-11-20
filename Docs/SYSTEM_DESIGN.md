@@ -492,3 +492,8 @@ Approved theme IDs are `noir`, `archive`, `digital_forensics`, `luxury`, and `fi
 `API.md` defines the external request/response contract; `DATA_MODEL.md` defines persisted fields and ownership; `ACCEPTANCE_TESTS.md` defines observable verification. Treat any proposed Evidence Board endpoints or concurrency fields as proposals until they are checked against the current routes, models, and frontend API client.
 
 Before release, test board reads/writes for owner isolation, validation, persistence after reload, stale-write conflicts, safe deletion/dependency handling, and absence of solution data. Test themes for allowlist enforcement, invalid-value fallback, legacy cases, visual consistency, and unchanged mystery semantics.
+
+
+## Evidence board implementation ? 2026-11-20
+
+Implemented board persistence uses the existing MongoDB progress record. Explicit saves avoid writes per pointer movement. Atomic revision comparisons reject stale board writes; existing notes writes do not replace board fields. No new services or dependencies introduced.

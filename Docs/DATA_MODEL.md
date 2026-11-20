@@ -1637,3 +1637,8 @@ This document defines persistence requirements, not endpoint names. Do not inven
 - [ ] API DTOs expose only board data and public case fields appropriate to the user's state.
 - [ ] Tests cover board persistence, ownership, invalid references, concurrency, theme validation, and solution privacy.
 
+
+
+## Evidence board implementation ? 2026-11-20
+
+InvestigationProgress now embeds board (cards and connections) plus boardRevision (default 0). Cards have id, kind (evidence/suspect/event/theory), optional refId, text <=2000, x 0..1180, y 0..1000. Maximum 80 cards and 160 connections; unique IDs and same-case references required. Connections use from/to card IDs and related/supports/contradicts labels. Board writes atomically increment the revision.

@@ -71,6 +71,13 @@ export function CaseOverviewView() {
         </p>
       </div>
 
+
+      <Link to={`/case/${caseId}/board`} className="flex flex-wrap items-center justify-between gap-4 bg-neoYellow border-2 border-ink rounded-xl p-5 shadow-hard-sm">
+        <div><span className="font-mono text-xs font-bold uppercase">Your investigation workspace</span>
+        <h3 className="font-display text-xl font-extrabold mt-1">Turn clues into a working theory.</h3>
+        <p className="text-sm mt-1">Pin evidence, compare alibis, and mark contradictions on your board.</p></div>
+        <span className="font-bold flex items-center gap-2">Open evidence board <ArrowRight size={18}/></span>
+      </Link>
       {/* Quick Access Roster Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link

@@ -599,3 +599,8 @@ Use one row per test case.
 
 
 A feature is complete only when its acceptance tests are executable and pass in the relevant environment, loading/empty/error/success states are covered, keyboard and responsive behavior are verified, authorization and private-data boundaries are tested at the API layer, and documentation reflects the implemented behavior. A green unit-test suite alone does not establish acceptance. For the Evidence Board, verify persisted cards, positions, connections, and theories plus stale-write handling and owner isolation. For case themes, verify the allowlist and prove that theme selection cannot change canonical case truth or expose solution data.
+
+
+## Evidence board implementation ? 2026-11-20
+
+Board acceptance: pin evidence/suspects/events, add/edit theory, connect with each relation, move by pointer and keyboard, remove a card with its connections, save and reload. Verify unauthenticated/foreign case rejection, cross-case reference rejection, bounded payloads, stale revision rejection, and clear save failure. Case creation must show full evidence immediately without refreshing. Automated component tests cover pin/theory/connect/save and the summary hydration regression; API tests cover persistence and conflicts. Browser visual/drag QA remains a manual release check.

@@ -21,9 +21,9 @@ export function CaseCard({ caseData, onDelete, onSelect }) {
     // fallback
   }
 
-  const totalEvidence = caseData.evidence?.length || 6;
-  const totalSuspects = caseData.suspects?.length || 4;
-  const progressPercent = isCompleted ? 100 : Math.min(100, Math.round((openedEvidenceCount / totalEvidence) * 100));
+  const totalEvidence = caseData.evidence?.length ?? caseData.evidenceCount ?? 0;
+  const totalSuspects = caseData.suspects?.length ?? caseData.suspectCount ?? 0;
+  const progressPercent = isCompleted ? 100 : Math.min(100, Math.round((openedEvidenceCount / Math.max(1, totalEvidence)) * 100));
 
   const handleAction = () => {
     if (onSelect) onSelect(caseData.id);

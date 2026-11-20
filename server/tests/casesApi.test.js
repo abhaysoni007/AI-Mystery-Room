@@ -322,4 +322,18 @@ describe('Cases & Progress REST API', () => {
     expect(res.body.data.progress.openedEvidenceIds).toContain('evidence_01');
     expect(res.body.data.progress.notes).toBe('Julian Ross keycard record was noted.');
   });
+
+  it('persists an owned board and rejects stale revisions and foreign references', async () => {
+    const created = await Case.create(buildSampleCase(testUserId));
+    const board = { cards: [{ id: 'pin1', kind: 'evidence', refId: 'evidence_01', x: 12, y: 24 }], connections: [] };
+    const url = `/api/v1/cases/${created.id}/board`;
+    const saved = await request(app).put(url).set('Authorization', `Bearer ${authToken}`).send({ board, revision: 0 });
+    expect(saved.status).toBe(200);
+    const read = await request(app).get(`/api/v1/cases/${created.id}/progress`).set('Authorization', `Bearer ${authToken}`);
+    expect(read.body.data.progress.board.cards[0].refId).toBe('evidence_01');
+    expect((await request(app).put(url).set('Authorization', `Bearer ${authToken}`).send({ board, revision: 0 })).status).toBe(409);
+    board.cards[0].refId = 'another_case_clue';
+    expect((await request(app).put(url).set('Authorization', `Bearer ${authToken}`).send({ board, revision: 1 })).status).toBe(400);
+    expect((await request(app).put(url).send({ board, revision: 1 })).status).toBe(401);
+  });
 });

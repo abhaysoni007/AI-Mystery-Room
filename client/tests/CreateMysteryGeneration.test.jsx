@@ -38,6 +38,10 @@ describe('CreateMysteryPage Generation Pipeline Integration', () => {
     });
 
     vi.spyOn(api, 'createCase').mockReturnValue(pendingPromise);
+    vi.spyOn(api, 'getCase').mockResolvedValue({
+      id: 'case_persisted_999', title: 'The Alpine Cipher Heist',
+      evidence: [{ id: 'clue_1', title: 'Hangar access record' }], suspects: [], timeline: [],
+    });
 
     render(
       <MemoryRouter>
@@ -75,6 +79,7 @@ describe('CreateMysteryPage Generation Pipeline Integration', () => {
     });
 
     await waitFor(() => {
+      expect(api.getCase).toHaveBeenCalledWith('case_persisted_999');
       expect(mockNavigate).toHaveBeenCalledWith('/case/case_persisted_999');
     });
   });

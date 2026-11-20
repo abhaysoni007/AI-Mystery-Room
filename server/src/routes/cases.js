@@ -9,6 +9,8 @@ import { serializePublicCase, serializePublicCaseSummary } from '../serializers/
 import { sendSuccess, sendError } from '../utils/response.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
+import { validateBoard } from '../services/boardValidator.js';
+
 const casesRouter = Router();
 
 // Enforce strict authentication on all case operations
@@ -299,6 +301,28 @@ casesRouter.patch('/:caseId/progress', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// Board writes are atomic and revision checked, independently of notes updates.
+casesRouter.put('/:caseId/board', async (req, res, next) => {
+  try {
+    const { caseId } = req.params;
+    const userId = req.user._id.toString();
+    if (!mongoose.Types.ObjectId.isValid(caseId)) return sendError(res, { code: 'CASE_NOT_FOUND', message: 'Case not found', statusCode: 404 });
+    const dossier = await Case.findOne({ _id: caseId, ownerId: userId });
+    if (!dossier) return sendError(res, { code: 'CASE_NOT_FOUND', message: 'Case not found', statusCode: 404 });
+    const board = validateBoard(req.body.board, dossier);
+    const revision = req.body.revision;
+    if (!board || !Number.isSafeInteger(revision) || revision < 0) return sendError(res, { code: 'INVALID_BOARD', message: 'Invalid board cards or connections', statusCode: 400 });
+    await InvestigationProgress.updateOne({ caseId, userId }, { $setOnInsert: { caseId, userId, boardRevision: 0 } }, { upsert: true });
+    const progress = await InvestigationProgress.findOneAndUpdate(
+      { caseId, userId, ...(revision === 0 ? { $or: [{ boardRevision: 0 }, { boardRevision: { $exists: false } }] } : { boardRevision: revision }) },
+      { $set: { board, lastActivityAt: new Date() }, $inc: { boardRevision: 1 } },
+      { new: true }
+    );
+    if (!progress) return sendError(res, { code: 'BOARD_CONFLICT', message: 'Board changed in another tab. Reload before editing.', statusCode: 409 });
+    return sendSuccess(res, { data: { board: progress.board, revision: progress.boardRevision } });
+  } catch (err) { next(err); }
 });
 
 // POST /api/v1/cases/:caseId/accusations - Server-authoritative accusation evaluation (owner-scoped)

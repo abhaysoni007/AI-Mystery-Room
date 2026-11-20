@@ -2354,3 +2354,8 @@ These are contract additions, not a claim that the endpoints already exist. Insp
 - [ ] Theme selection does not change canonical truth or scoring.
 - [ ] Integration tests cover authorization, validation, conflict handling, and solution privacy.
 
+
+
+## Evidence board implementation ? 2026-11-20
+
+Implemented board contract: PUT /api/v1/cases/:caseId/board accepts {board: {cards, connections}, revision}. GET /cases/:caseId/progress returns board and boardRevision. Ownership required; malformed/cross-case references return 400, missing/foreign cases 404, stale revisions 409. Successful writes return {board, revision}. Last successful save wins only with a matching revision.

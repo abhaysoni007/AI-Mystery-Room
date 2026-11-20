@@ -1300,3 +1300,8 @@ Every user journey must be coherent from entry to completion. The application mu
 ****The experience should feel like a tactile, colorful detective game while behaving like a reliable, secure web application.****
 
 ****End of `docs/USER_FLOWS.md` — Version 1.1.0****
+
+
+## Evidence board implementation ? 2026-11-20
+
+Implemented navigation: Overview ? Suspects ? Evidence ? Timeline ? Board ? Notes. Overview and evidence catalog link directly to the board. Players pin material, move cards, add/edit theories, connect cards, remove cards/edges, and explicitly Save board before leaving. Dirty state warns on browser unload. Sample case board is stored locally; authenticated case boards are stored on the server. Generated cases load their full dossier before navigation.

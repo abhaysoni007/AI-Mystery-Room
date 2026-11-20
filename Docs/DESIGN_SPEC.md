@@ -2339,3 +2339,8 @@ Neo-brutalism is a system, not decoration: bold outlines, hard shadows, saturate
 This document is the single source of truth for design. Any intentional design-system change must be made here first or alongside the implementation, and the affected components and acceptance criteria must be updated together.
 
 ****End of `docs/DESIGN_SPEC.md` — Version 1.1.0****
+
+
+## Evidence board implementation ? 2026-11-20
+
+Implemented board: warm dotted paper canvas, lightly elevated evidence cards, sage suspect cards, blue-gray events, yellow theory notes. Case material tray sits beside the canvas on wide screens and above it on narrow screens. Board route widens the workspace to 1700px. Canvas scrolls independently. Card handles support pointer dragging and arrow-key positioning; all connections have a text list and removal controls.

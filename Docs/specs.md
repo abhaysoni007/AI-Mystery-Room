@@ -873,3 +873,8 @@ The product is not complete merely because screens render. A release requires:
 The intended result is a coherent detective game in which the user actively investigates, compares clues, tests theories, identifies contradictions, and reaches a defensible conclusion—not a chatbot that generates a story and invents an answer at the end.
 
 **End of Specification — Version 1.1.0**
+
+
+## Evidence board implementation ? 2026-11-20
+
+Implementation slice: persisted interactive board is available at /case/:caseId/board with evidence, suspect, timeline and user theory pins, labeled connections, keyboard/pointer movement, explicit saves, and optimistic concurrency. Full case dossier hydration fixes creation navigation. Per-case theme presets and image-provider integration remain separate future work.

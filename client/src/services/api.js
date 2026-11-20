@@ -142,3 +142,8 @@ export async function updateWalkthrough(hasCompletedWalkthrough = true) {
   });
   return json.data;
 }
+
+export async function saveBoard(caseId, board, revision) {
+  const json = await request(`/cases/${caseId}/board`, { method: 'PUT', body: { board, revision } });
+  return json.data;
+}
