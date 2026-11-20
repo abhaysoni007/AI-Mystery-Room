@@ -2344,3 +2344,8 @@ This document is the single source of truth for design. Any intentional design-s
 ## Evidence board implementation ? 2026-11-20
 
 Implemented board: warm dotted paper canvas, lightly elevated evidence cards, sage suspect cards, blue-gray events, yellow theory notes. Case material tray sits beside the canvas on wide screens and above it on narrow screens. Board route widens the workspace to 1700px. Canvas scrolls independently. Card handles support pointer dragging and arrow-key positioning; all connections have a text list and removal controls.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+Interview room uses a focused conversation column and compact question panel; on narrow screens the questions flow below the conversation. Transcript and evidence links remain text-readable. Feature announcement uses two instruction cards, paper palette, restrained yellow/green accents, blurred backdrop, scrollable viewport, accessible dialog name, focus trap, Escape close, and body scroll lock. The reusable guide content also powers new manual chapters. Navigation remains six investigation sections.

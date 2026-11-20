@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { InvestigationProvider } from './context/InvestigationContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { FeatureUpdates } from './components/walkthrough/FeatureUpdates';
 import { PlatformWalkthrough } from './components/walkthrough/PlatformWalkthrough';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { LandingPage } from './pages/LandingPage';
@@ -16,6 +17,7 @@ import { CaseOverviewView } from './pages/investigation/CaseOverviewView';
 import { SuspectsView } from './pages/investigation/SuspectsView';
 import { EvidenceView } from './pages/investigation/EvidenceView';
 import { TimelineView } from './pages/investigation/TimelineView';
+import { InterviewView } from './pages/investigation/InterviewView';
 import { EvidenceBoardView } from './pages/investigation/EvidenceBoardView';
 import { NotesView } from './pages/investigation/NotesView';
 import { EvidenceViewerPage } from './pages/evidence/EvidenceViewerPage';
@@ -79,6 +81,7 @@ export default function App() {
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<CaseOverviewView />} />
               <Route path="suspects" element={<SuspectsView />} />
+              <Route path="suspects/:suspectId/interview" element={<InterviewView />} />
               <Route path="evidence" element={<EvidenceView />} />
               <Route path="timeline" element={<TimelineView />} />
               <Route path="board" element={<EvidenceBoardView />} />
@@ -89,6 +92,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <PlatformWalkthrough />
+          <FeatureUpdates />
         </BrowserRouter>
       </InvestigationProvider>
     </AuthProvider>

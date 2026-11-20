@@ -51,10 +51,16 @@ function buildGeminiResponseSchema() {
             background: { type: Type.STRING },
             publicStatement: { type: Type.STRING },
             alibiPublicText: { type: Type.STRING },
+            interview: {
+              type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+                id: { type: Type.STRING }, question: { type: Type.STRING }, answer: { type: Type.STRING },
+                evidenceId: { type: Type.STRING }, followUpTo: { type: Type.STRING },
+              }, required: ['id', 'question', 'answer'] },
+            },
             relatedEvidenceIds: { type: Type.ARRAY, items: { type: Type.STRING } },
             relatedEventIds: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
-          required: ['id', 'name', 'occupation', 'relationship', 'summary', 'alibiPublicText'],
+          required: ['id', 'name', 'occupation', 'relationship', 'summary', 'alibiPublicText', 'interview'],
         },
       },
       timeline: {
@@ -156,6 +162,15 @@ Create a complete, solvable, clue-corroborated mystery case based on the followi
 ${diversityContext}
 
 ${correctiveFeedback ? `PREVIOUS GENERATION CORRECTIONS (MUST FIX):\n${correctiveFeedback}\n` : ''}
+
+INTERVIEW RULES: For every suspect include an interview array with 3 to 5 turns.
+Each turn has id, question, answer, and optional evidenceId and followUpTo.
+Write first-person suspect answers from the fixed case truth and that suspect's knowledge.
+Include an opening alibi question, a challenge referencing an actual evidence ID, and a follow-up referencing an earlier turn ID.
+Use ONLY facts supported by this case's visible evidence, timeline, or public statements.
+Challenges can expose inconsistencies but must not confess guilt, name the culprit, reveal private motives, classify red herrings, or quote the hidden solution.
+Innocent suspects must have meaningful answers too. Never require an interview to access a decisive clue: the case must remain solvable from the evidence.
+Every evidence item must describe the user's scenario and support the case timeline; never add unrelated filler clues.
 
 STRICT DETECTIVE FICTION & FAIR-PLAY RULES:
 1. Provide 3 or 4 suspects, each with a distinct occupation, relationship to the victim/target, plausible motive, opportunity, and public alibi.

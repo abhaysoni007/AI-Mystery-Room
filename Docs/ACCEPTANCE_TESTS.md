@@ -604,3 +604,8 @@ A feature is complete only when its acceptance tests are executable and pass in 
 ## Evidence board implementation ? 2026-11-20
 
 Board acceptance: pin evidence/suspects/events, add/edit theory, connect with each relation, move by pointer and keyboard, remove a card with its connections, save and reload. Verify unauthenticated/foreign case rejection, cross-case reference rejection, bounded payloads, stale revision rejection, and clear save failure. Case creation must show full evidence immediately without refreshing. Automated component tests cover pin/theory/connect/save and the summary hydration regression; API tests cover persistence and conflicts. Browser visual/drag QA remains a manual release check.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+Verify same-case questions and evidence; locked challenges until earlier question and evidence examination; answer persistence, repeated-question idempotence, foreign-case isolation, and no unasked answer disclosure. Verify pinning an answer saves to the same board; legacy cases visibly use recorded mode. Verify announcement dismissal survives remount, manual retains both New feature chapters, keyboard dialog exit/focus controls, and no popup during creation. Unit/API/component coverage added. Live model quality and visual/mobile browser checks are separate release checks, not inferred from reference tests.

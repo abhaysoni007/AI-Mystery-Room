@@ -10,13 +10,16 @@ import {
   NotebookPen,
   ShieldAlert,
   Network,
+  BookOpen,
 } from 'lucide-react';
 import { useInvestigation } from '../context/InvestigationContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 
 export function InvestigationLayout() {
   const { caseId } = useParams();
   const navigate = useNavigate();
+  const { openWalkthrough } = useAuth();
   const location = useLocation();
   const isBoard = location.pathname.endsWith("/board");
   const { currentCase, selectCase, progress } = useInvestigation();
@@ -120,6 +123,7 @@ export function InvestigationLayout() {
               </div>
             </div>
 
+            <button onClick={openWalkthrough} aria-label="Open user manual" title="User manual" className="p-2 border-2 border-ink rounded-lg hover:bg-neoYellow"><BookOpen size={16}/></button>
             <Button
               variant="danger"
               size="sm"

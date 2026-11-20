@@ -878,3 +878,8 @@ The intended result is a coherent detective game in which the user actively inve
 ## Evidence board implementation ? 2026-11-20
 
 Implementation slice: persisted interactive board is available at /case/:caseId/board with evidence, suspect, timeline and user theory pins, labeled connections, keyboard/pointer movement, explicit saves, and optimistic concurrency. Full case dossier hydration fixes creation navigation. Per-case theme presets and image-provider integration remain separate future work.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+Suspect interviews are a separate route under Suspects, not another crowded dashboard section. New generation prompts request sealed case-specific interview scripts alongside evidence and timeline. No model runs during an interview. Legacy/missing scripts repeat recorded alibi/background only, visibly labeled. Generated evidence and answers still require editorial/player evaluation for semantic quality; reference validation does not prove solvability.

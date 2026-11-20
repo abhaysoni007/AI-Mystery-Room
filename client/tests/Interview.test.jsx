@@ -1,0 +1,21 @@
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { vi, it, expect } from 'vitest';
+import { InterviewView } from '../src/pages/investigation/InterviewView';
+import * as api from '../src/services/api';
+vi.mock('../src/services/api', () => ({ getInterview: vi.fn(), askInterview: vi.fn(), getProgress: vi.fn(), saveBoard: vi.fn() }));
+vi.mock('../src/context/InvestigationContext', () => ({ useInvestigation: () => ({ currentCase: { id: 'case1', evidence: [], suspects: [{ id: 's1', name: 'Mira Sen', publicStatement: 'I stayed upstairs.' }] }, progress: { openedEvidenceIds: [] } }) }));
+it('asks a case question and pins the resulting statement to its case board', async () => {
+  const initial = { mode: 'prepared', questions: [{ id: 'q1', question: 'Where were you?', asked: false, lockedReason: null }], transcript: [] };
+  api.getInterview.mockResolvedValue(initial);
+  api.askInterview.mockResolvedValue({ ...initial, questions: [{ ...initial.questions[0], asked: true }], transcript: [{ questionId: 'q1', question: 'Where were you?', answer: 'I stayed upstairs.' }] });
+  api.getProgress.mockResolvedValue({ board: { cards: [], connections: [] }, boardRevision: 0 });
+  api.saveBoard.mockResolvedValue({ revision: 1 });
+  render(<MemoryRouter initialEntries={['/case/case1/suspects/s1/interview']}><Routes><Route path="/case/:caseId/suspects/:suspectId/interview" element={<InterviewView/>}/></Routes></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Where were you?' }));
+  fireEvent.click(await screen.findByText('Pin statement to board'));
+  await screen.findByText(/Statement pinned/);
+  expect(api.askInterview).toHaveBeenCalledWith('case1', 's1', 'q1', undefined);
+  expect(api.saveBoard).toHaveBeenCalledWith('case1', expect.objectContaining({ cards: [expect.objectContaining({ text: expect.stringContaining('Mira Sen') })] }), 0);
+});

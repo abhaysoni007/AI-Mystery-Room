@@ -1,8 +1,10 @@
 import React from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { X, User, Quote, Shield, FileText, Clock } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export function SuspectProfileModal({ isOpen, suspect, onClose }) {
+  const { caseId } = useParams();
   if (!isOpen || !suspect) return null;
 
   const initials = suspect.name
@@ -118,7 +120,8 @@ export function SuspectProfileModal({ isOpen, suspect, onClose }) {
         </div>
 
         {/* Footer Actions */}
-        <div className="flex justify-end pt-2">
+        <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
+          <Link to={`/case/${caseId}/suspects/${suspect.id}/interview`} className="bg-neoYellow border-2 border-ink rounded-lg px-4 py-2 text-sm font-bold">Interview suspect</Link>
           <Button variant="secondary" onClick={onClose}>
             CLOSE DOSSIER
           </Button>

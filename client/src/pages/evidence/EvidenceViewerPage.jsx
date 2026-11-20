@@ -29,15 +29,14 @@ export function EvidenceViewerPage() {
   }, [caseId, currentCase, selectCase]);
 
   useEffect(() => {
-    if (evidenceId) {
+    if (evidenceId && currentCase?.id === caseId && currentCase.evidence?.some(e => e.id === evidenceId)) {
       openEvidence(evidenceId);
     }
-  }, [evidenceId, openEvidence]);
+  }, [evidenceId, openEvidence, currentCase, caseId]);
 
   const activeCase = currentCase || SAMPLE_CASE;
   const evidence =
-    activeCase.evidence?.find((e) => e.id === evidenceId) ||
-    SAMPLE_CASE.evidence.find((e) => e.id === evidenceId);
+    activeCase.id === caseId ? activeCase.evidence?.find((e) => e.id === evidenceId) : null;
 
   if (!evidence) {
     return (

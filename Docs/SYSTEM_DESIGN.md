@@ -497,3 +497,8 @@ Before release, test board reads/writes for owner isolation, validation, persist
 ## Evidence board implementation ? 2026-11-20
 
 Implemented board persistence uses the existing MongoDB progress record. Explicit saves avoid writes per pointer movement. Atomic revision comparisons reject stale board writes; existing notes writes do not replace board fields. No new services or dependencies introduced.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+Interview scripts are generated once with each case. Gameplay reads deterministic prepared responses and persists only asked IDs in existing progress storage. No added model calls, service, queue, or provider fees per question. Atomic add-to-set prevents duplicate questions; board statement pin uses existing revision checks. Feature-announcement dismissals are versioned per user in localStorage; this preference is browser-local rather than cross-device.

@@ -1,3 +1,4 @@
+import { validateInterviews } from './interviewService.js';
 /**
  * Validates the internal referential integrity and schema bounds of a generated or submitted mystery case.
  * Enforces detective fair-play rules:
@@ -24,6 +25,8 @@ export function validateCaseReferences(caseData) {
   if (!caseData.incident || !caseData.incident.description) {
     errors.push('Incident description is required.');
   }
+
+  errors.push(...validateInterviews(caseData));
 
   const suspects = Array.isArray(caseData.suspects) ? caseData.suspects : [];
   if (suspects.length < 2) {

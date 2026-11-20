@@ -28,7 +28,7 @@ describe('PlatformWalkthrough Component', () => {
     );
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/STEP 1 OF 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/STEP 1 OF 7/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /CENTRAL COMMAND & CASE ARCHIVE/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /SKIP TOUR/i })[0]).toBeInTheDocument();
 
@@ -36,7 +36,7 @@ describe('PlatformWalkthrough Component', () => {
     expect(nextBtn).toBeInTheDocument();
   });
 
-  it('advances through all 5 feature steps using Next and Previous buttons', () => {
+  it('advances through all 7 feature steps using Next and Previous buttons', () => {
     render(
       <AuthProvider>
         <WalkthroughTestWrapper />
@@ -47,22 +47,28 @@ describe('PlatformWalkthrough Component', () => {
 
     // Step 1 -> Step 2
     fireEvent.click(nextBtn);
-    expect(screen.getByText(/STEP 2 OF 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/STEP 2 OF 7/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /AI MYSTERY GENERATION ENGINE/i })).toBeInTheDocument();
 
     // Step 2 -> Step 3
     fireEvent.click(nextBtn);
-    expect(screen.getByText(/STEP 3 OF 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/STEP 3 OF 7/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /THE DETECTIVE WORKSPACE/i })).toBeInTheDocument();
 
     // Step 3 -> Step 4
     fireEvent.click(nextBtn);
-    expect(screen.getByText(/STEP 4 OF 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/STEP 4 OF 7/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /FORENSIC EVIDENCE ANALYSIS/i })).toBeInTheDocument();
 
-    // Step 4 -> Step 5
+    // New board and interview chapters are available before the verdict.
     fireEvent.click(nextBtn);
-    expect(screen.getByText(/STEP 5 OF 5/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'THE EVIDENCE BOARD' })).toBeInTheDocument();
+    expect(screen.getByText('New feature')).toBeInTheDocument();
+    fireEvent.click(nextBtn);
+    expect(screen.getByRole('heading', { name: 'SUSPECT INTERVIEWS' })).toBeInTheDocument();
+    expect(screen.getByText('New feature')).toBeInTheDocument();
+    fireEvent.click(nextBtn);
+    expect(screen.getByText(/STEP 7 OF 7/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /THE FINAL ACCUSATION & VERDICT/i })).toBeInTheDocument();
 
     // On Step 5, primary button is "START INVESTIGATING"
@@ -71,7 +77,7 @@ describe('PlatformWalkthrough Component', () => {
     // Test Previous button
     const prevBtn = screen.getByRole('button', { name: /PREVIOUS/i });
     fireEvent.click(prevBtn);
-    expect(screen.getByText(/STEP 4 OF 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/STEP 6 OF 7/i)).toBeInTheDocument();
   });
 
   it('clicking "SKIP TOUR" immediately closes the tour and marks walkthrough complete', () => {
@@ -106,6 +112,8 @@ describe('PlatformWalkthrough Component', () => {
     fireEvent.click(nextBtn);
     fireEvent.click(nextBtn);
 
+    fireEvent.click(nextBtn);
+    fireEvent.click(nextBtn);
     const finishBtn = screen.getByRole('button', { name: /START INVESTIGATING/i });
     fireEvent.click(finishBtn);
 

@@ -147,3 +147,14 @@ export async function saveBoard(caseId, board, revision) {
   const json = await request(`/cases/${caseId}/board`, { method: 'PUT', body: { board, revision } });
   return json.data;
 }
+
+export async function getInterview(caseId, suspectId) {
+  const json = await request(`/cases/${caseId}/suspects/${encodeURIComponent(suspectId)}/interview`);
+  return json.data.interview;
+}
+export async function askInterview(caseId, suspectId, questionId, evidenceId) {
+  const json = await request(`/cases/${caseId}/suspects/${encodeURIComponent(suspectId)}/interview`, {
+    method: 'POST', body: { questionId, evidenceId },
+  });
+  return json.data.interview;
+}

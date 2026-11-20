@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
+  Network,
+  MessageSquare,
   ArrowRight,
   ArrowLeft,
   FolderArchive,
@@ -13,6 +15,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
+
+import { FEATURE_GUIDES } from '../../data/featureGuides';
+import { useDialogFocus } from './useDialogFocus';
 
 const TOUR_STEPS = [
   {
@@ -43,20 +48,20 @@ const TOUR_STEPS = [
       'Synthesize full-scale, fair-play detective mysteries from any scenario. Choose crime categories like Theft, Murder, Cybercrime, or Espionage and calibrate your difficulty tier.',
     highlights: [
       'Custom premise inputs transformed into rich forensic evidence catalogs',
-      'Strict detective fiction rules: guaranteed solvable with zero generative stalls',
+      'Inspect the available evidence and compare it with suspect alibis',
       'Pre-calibrated suspect motives, alibis, and deceptive red herrings',
     ],
   },
   {
     stepNumber: 3,
     title: 'THE DETECTIVE WORKSPACE',
-    subtitle: '5 Core Intelligence Dossier Tabs',
+    subtitle: 'A focused workspace for each task',
     badge: 'WORKSPACE',
     badgeColor: 'bg-neoBlue text-white',
     icon: Search,
     iconBg: 'bg-neoBlue text-white',
     description:
-      'Dive into your active dossier organized into 5 dedicated workspace tabs: Incident Brief, Suspect Rosters, Evidence Locker, Master Timeline, and Detective Notepad.',
+      'Dive into your active dossier organized into dedicated sections: Overview, Suspects, Evidence, Timeline, Board, and Notes. Interviews open from individual suspect dossiers.',
     highlights: [
       'Cross-examine suspect public statements and conflicting alibis',
       'Reconstruct chronological sequences of events leading up to the incident',
@@ -79,8 +84,9 @@ const TOUR_STEPS = [
       'Discover decisive evidence that directly refutes false alibis',
     ],
   },
+  ...FEATURE_GUIDES.map((guide, index) => ({ ...guide, icon: index === 0 ? Network : MessageSquare })),
   {
-    stepNumber: 5,
+    stepNumber: 7,
     title: 'THE FINAL ACCUSATION & VERDICT',
     subtitle: 'Server-Authoritative Indictment',
     badge: 'FINAL VERDICT',
@@ -98,8 +104,11 @@ const TOUR_STEPS = [
 ];
 
 export function PlatformWalkthrough() {
-  const { isWalkthroughOpen, closeWalkthrough, completeWalkthrough } = useAuth();
+  const { isWalkthroughOpen, completeWalkthrough } = useAuth();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  const dialogRef = useRef(null);
+  useDialogFocus(isWalkthroughOpen, dialogRef, () => { completeWalkthrough(); setCurrentStepIndex(0); });
 
   if (!isWalkthroughOpen) return null;
 
@@ -131,16 +140,18 @@ export function PlatformWalkthrough() {
 
   return (
     <div
+      ref={dialogRef}
+      aria-label="User manual"
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/65 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/65 backdrop-blur-md animate-in fade-in duration-150"
     >
-      <div className="bg-paper border-3 border-ink shadow-hard-lg rounded-xl max-w-2xl w-full p-6 sm:p-8 relative space-y-6">
+      <div className="bg-paper border-3 border-ink shadow-hard-lg rounded-xl max-w-2xl w-full max-h-[90dvh] overflow-y-auto p-6 sm:p-8 relative space-y-6">
         {/* Top Header Row */}
         <div className="flex items-center justify-between border-b-2 border-ink pb-4">
           <div className="flex items-center gap-2.5">
             <span className="font-mono text-xs font-bold px-2.5 py-1 bg-paper-light border-2 border-ink rounded shadow-hard-xs text-ink uppercase">
-              STEP {currentStep.stepNumber} OF {TOUR_STEPS.length}
+              STEP {currentStepIndex + 1} OF {TOUR_STEPS.length}
             </span>
             <span
               className={`font-mono text-xs font-bold px-2.5 py-1 border-2 border-ink rounded shadow-hard-xs uppercase ${currentStep.badgeColor}`}
@@ -159,6 +170,7 @@ export function PlatformWalkthrough() {
           </button>
         </div>
 
+        {currentStep.isNew && <span className="inline-block bg-neoYellow border border-ink rounded px-2 py-1 text-xs font-bold">New feature</span>}
         {/* Step Content */}
         <div className="space-y-4">
           <div className="flex items-start gap-4">
@@ -195,6 +207,11 @@ export function PlatformWalkthrough() {
           </div>
         </div>
 
+        <nav aria-label="Manual chapters" className="flex flex-wrap gap-2">
+          {TOUR_STEPS.map((step, index) => <button key={step.title} onClick={() => setCurrentStepIndex(index)} aria-current={index === currentStepIndex ? 'step' : undefined} className="border border-ink/30 rounded px-2 py-1 text-[10px] font-mono hover:bg-neoYellow">
+            {step.badge}{step.isNew ? ' / NEW' : ''}
+          </button>)}
+        </nav>
         {/* Step Progress Bar Dots */}
         <div className="flex items-center gap-2 pt-2">
           {TOUR_STEPS.map((_, idx) => (

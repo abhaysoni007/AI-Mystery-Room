@@ -1305,3 +1305,8 @@ Every user journey must be coherent from entry to completion. The application mu
 ## Evidence board implementation ? 2026-11-20
 
 Implemented navigation: Overview ? Suspects ? Evidence ? Timeline ? Board ? Notes. Overview and evidence catalog link directly to the board. Players pin material, move cards, add/edit theories, connect cards, remove cards/edges, and explicitly Save board before leaving. Dirty state warns on browser unload. Sample case board is stored locally; authenticated case boards are stored on the server. Generated cases load their full dossier before navigation.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+Open Suspects -> Inspect dossier -> Interview suspect. Ask an available question, examine linked evidence, return and present it, then ask unlocked follow-ups. Transcript resumes after reload. Pin statement saves a cited theory card to the same case board with revision checking. New-feature cards appear over a blurred backdrop on dashboard/case routes once per signed-in user/browser/release, after the initial tour; never interrupt creation or auth. Dismiss with close, Got it, or Escape. Both features remain as New feature chapters in User manual; manual accessible from navbar and investigation header.

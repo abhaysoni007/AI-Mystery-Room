@@ -42,6 +42,15 @@ SCENARIO PREMISE:
 "${scenario}"
 
 SPECIFICATIONS:
+INTERVIEW RULES: For every suspect include an interview array with 3 to 5 turns.
+Each turn has id, question, answer, and optional evidenceId and followUpTo.
+Write first-person suspect answers from the fixed case truth and that suspect's knowledge.
+Include an opening alibi question, a challenge referencing an actual evidence ID, and a follow-up referencing an earlier turn ID.
+Use ONLY facts supported by this case's visible evidence, timeline, or public statements.
+Challenges can expose inconsistencies but must not confess guilt, name the culprit, reveal private motives, classify red herrings, or quote the hidden solution.
+Innocent suspects must have meaningful answers too. Never require an interview to access a decisive clue: the case must remain solvable from the evidence.
+Every evidence item must describe the user's scenario and support the case timeline; never add unrelated filler clues.
+
 - Category: ${category}
 - Difficulty: ${difficulty}
 - Length: ${length}
@@ -64,6 +73,10 @@ You MUST return a JSON object with this EXACT structure:
   "suspects": [
     {
       "id": "suspect_1",
+      "interview": [
+        { "id": "alibi", "question": "Where were you during the incident?", "answer": "First-person alibi consistent with the public statement." },
+        { "id": "challenge", "question": "How do you explain this case evidence?", "answer": "Case-specific response without revealing the solution.", "evidenceId": "ev_1", "followUpTo": "alibi" }
+      ],
       "name": "Full Name",
       "occupation": "Occupation / Job title",
       "relationship": "Connection to victim or scene",
@@ -284,7 +297,7 @@ export async function generateCaseWithOpenRouter({
             { role: 'user', content: userPrompt },
           ],
           temperature: 0.7,
-          max_tokens: 3500,
+          max_tokens: 6500,
         }),
         signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(35000) : undefined,
       });

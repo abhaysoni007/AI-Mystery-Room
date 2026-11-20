@@ -1647,3 +1647,8 @@ InvestigationProgress now embeds board (cards and connections) plus boardRevisio
 ### Case category compatibility fix ? 2026-11-20
 
 Creation normalizes legacy category aliases corporate ? corporate_espionage and general ? other before AI generation and persistence. New clients send canonical IDs. The validated category overrides provider category output when saving. Unsupported categories receive 400 VALIDATION_ERROR.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+Suspect.interview is an optional array of 2-8 prepared turns: id, question (<=400), answer (<=1800), optional evidenceId and followUpTo. Generation validation rejects duplicate IDs, cross-case evidence, and follow-ups referring forward/missing/circular dependencies. InvestigationProgress.interviewTurns stores suspectId/questionId pairs. Transcript text resolves from the sealed case script, avoiding duplicate answer stores. Board pins of statements are user-editable theory cards with suspect and question text.

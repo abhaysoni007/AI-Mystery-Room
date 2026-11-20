@@ -9,6 +9,7 @@ import { serializePublicCase, serializePublicCaseSummary } from '../serializers/
 import { sendSuccess, sendError } from '../utils/response.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
+import { interviewView } from '../services/interviewService.js';
 import { validateBoard } from '../services/boardValidator.js';
 
 const casesRouter = Router();
@@ -325,6 +326,33 @@ casesRouter.put('/:caseId/board', async (req, res, next) => {
     );
     if (!progress) return sendError(res, { code: 'BOARD_CONFLICT', message: 'Board changed in another tab. Reload before editing.', statusCode: 409 });
     return sendSuccess(res, { data: { board: progress.board, revision: progress.boardRevision } });
+  } catch (err) { next(err); }
+});
+
+// Interview responses are sealed with the case; only asked answers leave the server.
+casesRouter.all('/:caseId/suspects/:suspectId/interview', async (req, res, next) => {
+  try {
+    if (!['GET', 'POST'].includes(req.method)) return sendError(res, { code: 'METHOD_NOT_ALLOWED', message: 'Use GET or POST', statusCode: 405 });
+    const { caseId, suspectId } = req.params;
+    const userId = req.user._id.toString();
+    if (!mongoose.Types.ObjectId.isValid(caseId)) return sendError(res, { code: 'CASE_NOT_FOUND', message: 'Case not found', statusCode: 404 });
+    const dossier = await Case.findOne({ _id: caseId, ownerId: userId });
+    const suspect = dossier?.suspects.find(s => s.id === suspectId);
+    if (!suspect) return sendError(res, { code: 'SUSPECT_NOT_FOUND', message: 'Suspect not found in this case', statusCode: 404 });
+    let progress = await InvestigationProgress.findOne({ caseId, userId });
+    const view = () => interviewView(suspect, dossier.evidence,
+      (progress?.interviewTurns || []).filter(t => t.suspectId === suspectId).map(t => t.questionId),
+      progress?.openedEvidenceIds || []);
+    if (req.method === 'POST') {
+      const question = view().questions.find(q => q.id === req.body.questionId);
+      if (!question) return sendError(res, { code: 'INVALID_QUESTION', message: 'Choose a question from this interview', statusCode: 400 });
+      if (question.lockedReason) return sendError(res, { code: 'QUESTION_LOCKED', message: question.lockedReason, statusCode: 409 });
+      if (question.evidenceId !== (req.body.evidenceId || null)) return sendError(res, { code: 'INVALID_EVIDENCE', message: 'Present the evidence linked to this question', statusCode: 400 });
+      progress = await InvestigationProgress.findOneAndUpdate({ caseId, userId },
+        { $addToSet: { interviewTurns: { suspectId, questionId: question.id } }, $set: { lastActivityAt: new Date() } },
+        { new: true, upsert: true, setDefaultsOnInsert: true });
+    }
+    return sendSuccess(res, { data: { interview: view() } });
   } catch (err) { next(err); }
 });
 

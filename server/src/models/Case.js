@@ -20,6 +20,13 @@ const suspectSchema = new mongoose.Schema(
     background: { type: String, default: '' },
     publicStatement: { type: String, default: '' },
     alibiPublicText: { type: String, default: '' },
+    interview: { type: [new mongoose.Schema({
+      id: { type: String, required: true },
+      question: { type: String, required: true },
+      answer: { type: String, required: true },
+      evidenceId: String,
+      followUpTo: String,
+    }, { _id: false })], default: undefined },
     portraitAssetId: { type: String, default: null },
     relatedEvidenceIds: { type: [String], default: [] },
     relatedEventIds: { type: [String], default: [] },

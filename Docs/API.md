@@ -2364,3 +2364,8 @@ Implemented board contract: PUT /api/v1/cases/:caseId/board accepts {board: {car
 ### Case category compatibility fix ? 2026-11-20
 
 Creation normalizes legacy category aliases corporate ? corporate_espionage and general ? other before AI generation and persistence. New clients send canonical IDs. The validated category overrides provider category output when saving. Unsupported categories receive 400 VALIDATION_ERROR.
+
+
+## Case-bound interviews and feature guidance - 2026-11-21
+
+GET /api/v1/cases/:caseId/suspects/:suspectId/interview returns mode, question descriptors (id, question, evidenceId, evidenceTitle, asked, lockedReason), and only asked answers in transcript. POST on the same path accepts {questionId, evidenceId?}. Owner-only; 404 for foreign case/suspect, 400 invalid question/evidence, 409 prerequisite or unexamined evidence. Answering is idempotent and stored with $addToSet. Case serializers exclude full interview scripts. GET progress contains turn IDs, never unasked answer text.

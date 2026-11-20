@@ -362,4 +362,34 @@ describe('Cases & Progress REST API', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('keeps interviews private, validates evidence gates, and persists answers idempotently', async () => {
+    const payload = buildSampleCase(testUserId);
+    payload.suspects[0].interview = [
+      { id: 'opening', question: 'Where were you?', answer: 'In the VIP lounge.' },
+      { id: 'challenge', question: 'Explain this access log.', answer: 'My badge was left in my coat.', evidenceId: 'evidence_01', followUpTo: 'opening' },
+    ];
+    const dossier = await Case.create(payload);
+    const url = `/api/v1/cases/${dossier.id}/suspects/suspect_01/interview`;
+    const auth = { Authorization: `Bearer ${authToken}` };
+    expect((await request(app).get(url)).status).toBe(401);
+    const publicCase = await request(app).get(`/api/v1/cases/${dossier.id}`).set(auth);
+    expect(JSON.stringify(publicCase.body)).not.toContain('My badge was');
+    const initial = await request(app).get(url).set(auth);
+    expect(initial.body.data.interview.transcript).toEqual([]);
+    expect(JSON.stringify(initial.body)).not.toContain('My badge was');
+    expect((await request(app).post(url).set(auth).send({ questionId: 'challenge', evidenceId: 'evidence_01' })).status).toBe(409);
+    expect((await request(app).post(url).set(auth).send({ questionId: 'opening' })).status).toBe(200);
+    expect((await request(app).post(url).set(auth).send({ questionId: 'challenge', evidenceId: 'evidence_01' })).status).toBe(409);
+    await request(app).patch(`/api/v1/cases/${dossier.id}/progress`).set(auth).send({ openedEvidenceId: 'evidence_01' });
+    expect((await request(app).post(url).set(auth).send({ questionId: 'challenge', evidenceId: 'foreign' })).status).toBe(400);
+    const answered = await request(app).post(url).set(auth).send({ questionId: 'challenge', evidenceId: 'evidence_01' });
+    expect(answered.body.data.interview.transcript[1].answer).toContain('coat');
+    await request(app).post(url).set(auth).send({ questionId: 'challenge', evidenceId: 'evidence_01' });
+    const reopened = await request(app).get(url).set(auth);
+    expect(reopened.body.data.interview.transcript).toHaveLength(2);
+    const anotherUser = await User.create({ username: 'other_interviewer', name: 'Other', passwordHash: 'irrelevant' });
+    dossier.ownerId = anotherUser.id; await dossier.save();
+    expect((await request(app).get(url).set(auth)).status).toBe(404);
+  });
 });

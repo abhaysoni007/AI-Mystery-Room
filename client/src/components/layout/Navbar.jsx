@@ -34,11 +34,11 @@ export function Navbar() {
             <button
               type="button"
               onClick={openWalkthrough}
-              title="Platform Feature Walkthrough"
+              title="User manual" aria-label="Open user manual"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper-light border-2 border-ink rounded-lg text-xs font-mono font-bold hover:bg-neoYellow transition-colors shadow-hard-xs"
             >
               <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span className="hidden sm:inline">GUIDED</span> TOUR
+              <span className="hidden sm:inline">USER </span>MANUAL
             </button>
 
             <Button
